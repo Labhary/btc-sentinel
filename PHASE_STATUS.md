@@ -25,16 +25,29 @@ Last updated: 2026-08-02
 - Local fake Telegram transport and failure-mode tests.
 - Independent Python and Worker CI jobs.
 
-## Next — Phase 3
+## Completed — Phase 3
 
-- Binance public BTC/USDT market-data clients.
-- Closed-candle normalization and validation.
-- Retry, rate-limit, and stale-data behavior.
-- Funding, open-interest, and taker-data validation.
+- Unauthenticated Binance public clients restricted to BTCUSDT.
+- Spot and USD-M futures candles normalized into strict immutable records.
+- Monthly-through-15-minute analysis inputs plus one-minute lifecycle inputs.
+- Closed-candle, continuity, UTC-alignment, freshness, and source-coherence checks.
+- Funding, current and historical open interest, taker volume, and low-weight
+  spot order-book snapshots.
+- Bounded timeouts, response sizes, retries, backoff, rate-limit handling, and
+  in-run request coalescing.
+- Fail-closed required inputs and explicit degradation for optional context.
+- Deterministic fixtures and malformed, stale, contradictory, gap, outage, and
+  rate-limit tests.
+
+## Next — Phase 4
+
+- Completed-candle indicators.
+- Market structure and deterministic support/resistance zones.
+- Hierarchical monthly-to-15-minute regime classification.
+- Evidence-group scoring without double counting.
 
 ## Not implemented yet
 
-Deployment is not active. Market-data ingestion, indicators, regime
-classification, news ingestion, signal generation, live lifecycle monitoring,
-reports, statistics, and backtesting remain disabled until their phases are
-implemented and tested.
+Deployment is not active. Indicators, regime classification, news ingestion,
+signal generation, live lifecycle monitoring, reports, statistics, and
+backtesting remain disabled until their phases are implemented and tested.
