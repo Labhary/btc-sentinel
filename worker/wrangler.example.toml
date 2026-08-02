@@ -1,0 +1,14 @@
+name = "btc-sentinel"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "btc-sentinel"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# Never put secrets in this file. Add them with `wrangler secret put`:
+# TELEGRAM_BOT_TOKEN
+# TELEGRAM_ADMIN_USER_ID
+# TELEGRAM_WEBHOOK_SECRET
+# STATE_API_HMAC_SECRET

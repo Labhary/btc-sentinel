@@ -25,6 +25,8 @@ what actually happened. Both are needed:
 | `news_events` | Deduplicated news evidence | Classification may be versioned |
 | `processing_checkpoints` | Last fully processed source/candle | Monotonic update |
 | `outbox` | Telegram delivery coordination | Controlled state machine |
+| `telegram_updates` | Durable update claims and retry leases | Identity immutable; status controlled |
+| `command_audit` | Owner command and delivery result | Append-only |
 | `bot_settings` | Non-secret operational settings | Versioned update |
 | `health_runs` | Job health and stale-data evidence | Append-only |
 
@@ -56,8 +58,9 @@ are not extra lifecycle states.
 - Each signal ID is unique.
 - Each event has a stable unique `dedupe_key`.
 - Each alert has a stable unique `dedupe_key`.
+- Each Telegram `update_id` is claimed through a time-bounded processing lease.
+- Each handled command has at most one immutable audit row.
 - Each outcome is unique by `(signal_id, variant)`.
 - Each signal has at most one immutable trade activation.
 - A partial unique index allows at most one managed `ACTIVE` BTC signal.
 - Jobs and checkpoints use semantic keys rather than runner-local files.
-
