@@ -8,7 +8,16 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SKIP_PARTS = {".git", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache"}
+SKIP_PARTS = {
+    ".git",
+    ".venv",
+    ".wrangler",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    "coverage",
+    "node_modules",
+}
 SKIP_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".zip", ".png", ".jpg", ".pdf"}
 
 PATTERNS = {

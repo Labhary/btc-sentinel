@@ -18,4 +18,8 @@ dist/
 build/
 *.zip
 .DS_Store
-
+node_modules/
+.wrangler/
+.dev.vars
+worker/coverage/
+worker/wrangler.toml

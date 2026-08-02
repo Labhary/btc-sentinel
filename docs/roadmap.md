@@ -5,10 +5,10 @@ add files without activating production schedules.
 
 1. **Architecture and security — complete**
    Domain invariants, durable schema, immutable audit trail, secure config.
-2. **Telegram foundation**
+2. **Telegram foundation — complete**
    Command Worker, webhook authentication, owner authorization, message
    templates, fake transport, pause/resume.
-3. **Market data**
+3. **Market data — next**
    Spot/futures candles, funding, open interest, taker data, validation,
    retries, rate limits, stale detection.
 4. **Multi-timeframe analysis**

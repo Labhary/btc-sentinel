@@ -4,9 +4,10 @@ BTC Sentinel is a BTC/USDT-only market-analysis and paper-trading alert bot. It
 is being built as a deterministic, auditable system: market levels come from
 market data and rules, not from a language model.
 
-> **Current status:** Phase 1 (architecture, domain model, persistence schema,
-> and security baseline) is implemented and tested. The project does **not** yet
-> send signals and must not be treated as a deployable trading tool.
+> **Current status:** Phase 2 is implemented and tested. The owner-only Telegram
+> command Worker and its durable delivery foundation are ready for deployment
+> setup. Market analysis and signals remain disabled, so this must not yet be
+> treated as a trading tool.
 
 ## Non-negotiable behavior
 
@@ -45,12 +46,13 @@ hard limits.
 ## Repository map
 
 ```text
-src/btc_sentinel/       Domain, configuration, security, persistence
+src/btc_sentinel/       Python domain, configuration, security, persistence
 migrations/             SQLite/D1-compatible migrations
-tests/                  Automated Phase 1 tests
+tests/                  Python domain and migration tests
+worker/                 Telegram command Worker and TypeScript tests
 scripts/                Repository safety checks
 docs/                   Architecture, schema, security, roadmap
-.github/workflows/      Continuous integration (no live schedule yet)
+.github/workflows/      Python and Worker CI (no live schedule yet)
 ```
 
 ## Local validation
@@ -62,6 +64,7 @@ python -m venv .venv
 source .venv/bin/activate       # Windows: .venv\Scripts\activate
 python -m pip install -e ".[dev]"
 pytest
+ruff check .
 python scripts/check_no_secrets.py
 ```
 
@@ -71,6 +74,20 @@ suite can be run without downloading pytest:
 ```bash
 PYTHONPATH=src python -m unittest discover -s tests -v
 ```
+
+The command Worker is checked separately:
+
+```bash
+cd worker
+npm ci
+npm run format:check
+npm run typecheck
+npm test
+```
+
+Deployment stays intentionally disabled until Cloudflare D1 and encrypted
+secrets are configured. The Worker currently supports `/start`, `/help`,
+`/status`, `/pause`, and `/resume` for one configured owner in a private chat.
 
 ## Secrets
 
