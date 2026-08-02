@@ -1,0 +1,74 @@
+"""Closed vocabularies used in durable records."""
+
+from enum import StrEnum
+
+
+class Side(StrEnum):
+    LONG = "LONG"
+    SHORT = "SHORT"
+
+
+class Bias(StrEnum):
+    BULLISH = "BULLISH"
+    BEARISH = "BEARISH"
+    NEUTRAL = "NEUTRAL"
+    UNCERTAIN = "UNCERTAIN"
+
+
+class MarketRegime(StrEnum):
+    BULLISH_TREND = "BULLISH_TREND"
+    BEARISH_TREND = "BEARISH_TREND"
+    RANGE = "RANGE"
+    TRANSITION = "TRANSITION"
+    ABNORMALLY_VOLATILE = "ABNORMALLY_VOLATILE"
+    NO_RELIABLE_REGIME = "NO_RELIABLE_REGIME"
+
+
+class SignalStatus(StrEnum):
+    PENDING = "PENDING"
+    ACTIVE = "ACTIVE"
+    EXPIRED = "EXPIRED"
+    CANCELLED = "CANCELLED"
+    CLOSED = "CLOSED"
+
+
+class TrackStatus(StrEnum):
+    ACTIVE = "ACTIVE"
+    CLOSED = "CLOSED"
+
+
+class OutcomeVariant(StrEnum):
+    FIXED = "FIXED"
+    MANAGED = "MANAGED"
+
+
+class OutcomeResult(StrEnum):
+    WIN = "WIN"
+    LOSS = "LOSS"
+    BREAK_EVEN = "BREAK_EVEN"
+    EARLY_EXIT = "EARLY_EXIT"
+
+
+class TradeEventType(StrEnum):
+    SIGNAL_CREATED = "SIGNAL_CREATED"
+    ENTRY_ACTIVATED = "ENTRY_ACTIVATED"
+    ENTRY_EXPIRED = "ENTRY_EXPIRED"
+    SIGNAL_CANCELLED = "SIGNAL_CANCELLED"
+    TP1_HIT = "TP1_HIT"
+    TP2_HIT = "TP2_HIT"
+    TP3_HIT = "TP3_HIT"
+    STOP_LOSS_HIT = "STOP_LOSS_HIT"
+    BREAK_EVEN = "BREAK_EVEN"
+    EARLY_EXIT = "EARLY_EXIT"
+    CLOSED = "CLOSED"
+    MANAGEMENT_DECISION = "MANAGEMENT_DECISION"
+
+
+class ManagementAction(StrEnum):
+    HOLD = "HOLD"
+    MOVE_STOP_TO_BREAK_EVEN = "MOVE_STOP_TO_BREAK_EVEN"
+    REDUCE_POSITION = "REDUCE_POSITION"
+    TAKE_PARTIAL_PROFIT = "TAKE_PARTIAL_PROFIT"
+    TRAIL_STOP = "TRAIL_STOP"
+    CLOSE_POSITION_NOW = "CLOSE_POSITION_NOW"
+    CANCEL_PENDING_ENTRY = "CANCEL_PENDING_ENTRY"

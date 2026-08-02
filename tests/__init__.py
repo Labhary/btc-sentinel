@@ -1,0 +1,1 @@
+"""BTC Sentinel test suite."""

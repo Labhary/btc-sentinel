@@ -1,0 +1,592 @@
+"""SQLite reference repository using the same schema semantics as D1."""
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
+from datetime import date, datetime
+from decimal import Decimal
+from pathlib import Path
+from typing import Any
+from uuid import uuid4
+
+from btc_sentinel.domain.enums import (
+    OutcomeResult,
+    OutcomeVariant,
+    SignalStatus,
+    TrackStatus,
+    TradeEventType,
+)
+from btc_sentinel.domain.ids import format_signal_id
+from btc_sentinel.domain.models import Signal, as_decimal
+from btc_sentinel.domain.state_machine import assert_transition, transition_event
+from btc_sentinel.errors import (
+    ConcurrencyError,
+    DuplicateRecordError,
+    RecordNotFoundError,
+    SecurityError,
+)
+from btc_sentinel.time_utils import iso_utc
+
+_CLOSE_EVENTS = {
+    TradeEventType.TP1_HIT,
+    TradeEventType.TP2_HIT,
+    TradeEventType.TP3_HIT,
+    TradeEventType.STOP_LOSS_HIT,
+    TradeEventType.BREAK_EVEN,
+    TradeEventType.EARLY_EXIT,
+}
+_SENSITIVE_SETTING_PARTS = (
+    "TOKEN",
+    "SECRET",
+    "PASSWORD",
+    "API_KEY",
+    "AUTHORIZATION",
+    "SIGNATURE",
+    "CHAT_ID",
+    "USER_ID",
+)
+
+
+def _json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _decimal_text(value: Decimal | str | int, name: str) -> str:
+    return format(as_decimal(value, name), "f")
+
+
+class SqliteRepository:
+    """Transactional local implementation used by tests and backtests."""
+
+    def __init__(self, database_path: str | Path, migration_path: str | Path) -> None:
+        self.database_path = Path(database_path)
+        self.migration_path = Path(migration_path)
+        self._connection = sqlite3.connect(self.database_path, isolation_level=None)
+        self._connection.row_factory = sqlite3.Row
+        self._connection.execute("PRAGMA foreign_keys = ON")
+        self._connection.execute("PRAGMA busy_timeout = 5000")
+
+    def __enter__(self) -> SqliteRepository:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        self._connection.close()
+
+    def migrate(self) -> None:
+        self._connection.executescript(self.migration_path.read_text(encoding="utf-8"))
+
+    @contextmanager
+    def _transaction(self) -> Iterator[sqlite3.Connection]:
+        self._connection.execute("BEGIN IMMEDIATE")
+        try:
+            yield self._connection
+        except Exception:
+            self._connection.execute("ROLLBACK")
+            raise
+        else:
+            self._connection.execute("COMMIT")
+
+    def allocate_signal_id(self, business_date: date) -> str:
+        with self._transaction() as connection:
+            row = connection.execute(
+                """
+                INSERT INTO signal_id_counters(business_date, last_sequence)
+                VALUES (?, 1)
+                ON CONFLICT(business_date) DO UPDATE
+                    SET last_sequence = signal_id_counters.last_sequence + 1
+                RETURNING last_sequence
+                """,
+                (business_date.isoformat(),),
+            ).fetchone()
+        assert row is not None
+        return format_signal_id(business_date, int(row["last_sequence"]))
+
+    def create_signal(self, signal: Signal) -> None:
+        terms = signal.terms
+        now = iso_utc(terms.created_at)
+        try:
+            with self._transaction() as connection:
+                connection.execute(
+                    """
+                    INSERT INTO signals(
+                        signal_id, symbol, side, lifecycle_status, setup_score, regime,
+                        monthly_bias, weekly_bias, daily_bias, four_hour_bias,
+                        one_hour_bias, fifteen_minute_bias, created_at, data_timestamp,
+                        expires_at, entry_low, entry_high, original_stop,
+                        estimated_cost_rate, minimum_planned_rr, invalidation_condition,
+                        expiration_condition, recommended_risk_percent, reasons_json,
+                        risks_json, strategy_version, updated_at, row_version
+                    ) VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?, ?, ?, ?
+                    )
+                    """,
+                    (
+                        signal.signal_id,
+                        terms.symbol,
+                        terms.side.value,
+                        signal.status.value,
+                        signal.setup_score,
+                        signal.regime.value,
+                        signal.biases.monthly.value,
+                        signal.biases.weekly.value,
+                        signal.biases.daily.value,
+                        signal.biases.four_hour.value,
+                        signal.biases.one_hour.value,
+                        signal.biases.fifteen_minute.value,
+                        now,
+                        iso_utc(terms.data_timestamp),
+                        iso_utc(terms.expires_at),
+                        _decimal_text(terms.entry_low, "entry_low"),
+                        _decimal_text(terms.entry_high, "entry_high"),
+                        _decimal_text(terms.original_stop, "original_stop"),
+                        _decimal_text(terms.estimated_round_trip_cost_rate, "estimated_cost_rate"),
+                        _decimal_text(terms.minimum_planned_rr, "minimum_planned_rr"),
+                        terms.invalidation_condition,
+                        terms.expiration_condition,
+                        _decimal_text(terms.recommended_risk_percent, "recommended_risk_percent"),
+                        _json(signal.reasons),
+                        _json(signal.risks),
+                        signal.strategy_version,
+                        now,
+                        signal.row_version,
+                    ),
+                )
+                connection.executemany(
+                    """
+                    INSERT INTO signal_targets(signal_id, ordinal, price, planned_r)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    [
+                        (
+                            signal.signal_id,
+                            target.ordinal,
+                            _decimal_text(target.price, "target_price"),
+                            _decimal_text(terms.planned_r_for(target), "planned_r"),
+                        )
+                        for target in terms.targets
+                    ],
+                )
+                self._insert_event(
+                    connection=connection,
+                    signal_id=signal.signal_id,
+                    variant=None,
+                    event_type=TradeEventType.SIGNAL_CREATED,
+                    occurred_at=terms.created_at,
+                    price=None,
+                    payload={"strategy_version": signal.strategy_version},
+                    dedupe_key=f"signal:{signal.signal_id}:created",
+                )
+        except sqlite3.IntegrityError as exc:
+            raise DuplicateRecordError(f"Signal {signal.signal_id} already exists") from exc
+
+    def get_signal_status(self, signal_id: str) -> SignalStatus:
+        row = self._connection.execute(
+            "SELECT lifecycle_status FROM signals WHERE signal_id = ?", (signal_id,)
+        ).fetchone()
+        if row is None:
+            raise RecordNotFoundError(f"Signal {signal_id} was not found")
+        return SignalStatus(row["lifecycle_status"])
+
+    def _signal_row(self, connection: sqlite3.Connection, signal_id: str) -> sqlite3.Row:
+        row = connection.execute(
+            "SELECT * FROM signals WHERE signal_id = ?", (signal_id,)
+        ).fetchone()
+        if row is None:
+            raise RecordNotFoundError(f"Signal {signal_id} was not found")
+        return row
+
+    def activate_signal(
+        self,
+        signal_id: str,
+        fill_price: Decimal,
+        occurred_at: datetime,
+        dedupe_key: str,
+    ) -> None:
+        fill = _decimal_text(fill_price, "fill_price")
+        if Decimal(fill) <= 0:
+            raise ValueError("fill_price must be positive")
+        try:
+            with self._transaction() as connection:
+                row = self._signal_row(connection, signal_id)
+                current = SignalStatus(row["lifecycle_status"])
+                assert_transition(current, SignalStatus.ACTIVE)
+                event_type = transition_event(current, SignalStatus.ACTIVE)
+
+                updated = connection.execute(
+                    """
+                    UPDATE signals
+                    SET lifecycle_status = 'ACTIVE', updated_at = ?, row_version = row_version + 1
+                    WHERE signal_id = ? AND lifecycle_status = 'PENDING' AND row_version = ?
+                    """,
+                    (iso_utc(occurred_at), signal_id, row["row_version"]),
+                )
+                if updated.rowcount != 1:
+                    raise ConcurrencyError("Signal changed during activation")
+
+                targets = connection.execute(
+                    """
+                    SELECT ordinal, price, planned_r FROM signal_targets
+                    WHERE signal_id = ? ORDER BY ordinal
+                    """,
+                    (signal_id,),
+                ).fetchall()
+                targets_payload = [dict(target) for target in targets]
+                connection.execute(
+                    """
+                    INSERT INTO trades(
+                        signal_id, activated_at, fill_price, original_entry_low,
+                        original_entry_high, original_stop, original_targets_json,
+                        strategy_version, activation_event_key
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        signal_id,
+                        iso_utc(occurred_at),
+                        fill,
+                        row["entry_low"],
+                        row["entry_high"],
+                        row["original_stop"],
+                        _json(targets_payload),
+                        row["strategy_version"],
+                        dedupe_key,
+                    ),
+                )
+                connection.executemany(
+                    """
+                    INSERT INTO trade_tracks(
+                        signal_id, variant, track_status, current_stop,
+                        remaining_fraction, realized_r, updated_at, row_version
+                    ) VALUES (?, ?, 'ACTIVE', ?, '1', '0', ?, 1)
+                    """,
+                    [
+                        (signal_id, variant.value, row["original_stop"], iso_utc(occurred_at))
+                        for variant in OutcomeVariant
+                    ],
+                )
+                self._insert_event(
+                    connection=connection,
+                    signal_id=signal_id,
+                    variant=None,
+                    event_type=event_type,
+                    occurred_at=occurred_at,
+                    price=Decimal(fill),
+                    payload={"fill_policy": "conservative-v1"},
+                    dedupe_key=dedupe_key,
+                )
+        except sqlite3.IntegrityError as exc:
+            raise DuplicateRecordError(
+                "Activation was duplicated or another BTC signal is already active"
+            ) from exc
+
+    def expire_signal(self, signal_id: str, occurred_at: datetime, dedupe_key: str) -> None:
+        self._transition_pending(signal_id, SignalStatus.EXPIRED, occurred_at, dedupe_key)
+
+    def cancel_signal(self, signal_id: str, occurred_at: datetime, dedupe_key: str) -> None:
+        self._transition_pending(signal_id, SignalStatus.CANCELLED, occurred_at, dedupe_key)
+
+    def _transition_pending(
+        self,
+        signal_id: str,
+        new_status: SignalStatus,
+        occurred_at: datetime,
+        dedupe_key: str,
+    ) -> None:
+        with self._transaction() as connection:
+            row = self._signal_row(connection, signal_id)
+            current = SignalStatus(row["lifecycle_status"])
+            assert_transition(current, new_status)
+            event_type = transition_event(current, new_status)
+            updated = connection.execute(
+                """
+                UPDATE signals
+                SET lifecycle_status = ?, updated_at = ?, row_version = row_version + 1
+                WHERE signal_id = ? AND lifecycle_status = 'PENDING' AND row_version = ?
+                """,
+                (new_status.value, iso_utc(occurred_at), signal_id, row["row_version"]),
+            )
+            if updated.rowcount != 1:
+                raise ConcurrencyError("Signal changed during lifecycle transition")
+            self._insert_event(
+                connection=connection,
+                signal_id=signal_id,
+                variant=None,
+                event_type=event_type,
+                occurred_at=occurred_at,
+                price=None,
+                payload={},
+                dedupe_key=dedupe_key,
+            )
+
+    def append_trade_event(
+        self,
+        signal_id: str,
+        variant: OutcomeVariant,
+        event_type: TradeEventType,
+        occurred_at: datetime,
+        price: Decimal,
+        dedupe_key: str,
+        payload: dict[str, Any] | None = None,
+    ) -> None:
+        if event_type in {
+            TradeEventType.SIGNAL_CREATED,
+            TradeEventType.ENTRY_ACTIVATED,
+            TradeEventType.ENTRY_EXPIRED,
+            TradeEventType.SIGNAL_CANCELLED,
+            TradeEventType.CLOSED,
+        }:
+            raise ValueError("This event is owned by a lifecycle operation")
+        try:
+            with self._transaction() as connection:
+                self._require_active_track(connection, signal_id, variant)
+                self._insert_event(
+                    connection,
+                    signal_id,
+                    variant,
+                    event_type,
+                    occurred_at,
+                    price,
+                    payload or {},
+                    dedupe_key,
+                )
+        except sqlite3.IntegrityError as exc:
+            raise DuplicateRecordError(f"Event {dedupe_key} already exists") from exc
+
+    def close_track(
+        self,
+        signal_id: str,
+        variant: OutcomeVariant,
+        result: OutcomeResult,
+        result_r: Decimal,
+        result_percent: Decimal,
+        close_reason: str,
+        close_event: TradeEventType,
+        price: Decimal,
+        occurred_at: datetime,
+        dedupe_key: str,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        if close_event not in _CLOSE_EVENTS:
+            raise ValueError("close_event is not a permitted terminal event")
+        if not close_reason.strip():
+            raise ValueError("close_reason is required")
+        result_r_text = _decimal_text(result_r, "result_r")
+        result_percent_text = _decimal_text(result_percent, "result_percent")
+        close_price = _decimal_text(price, "close_price")
+
+        try:
+            with self._transaction() as connection:
+                track = self._require_active_track(connection, signal_id, variant)
+                updated = connection.execute(
+                    """
+                    UPDATE trade_tracks
+                    SET track_status = 'CLOSED', realized_r = ?, closed_at = ?,
+                        updated_at = ?, row_version = row_version + 1
+                    WHERE signal_id = ? AND variant = ? AND track_status = 'ACTIVE'
+                        AND row_version = ?
+                    """,
+                    (
+                        result_r_text,
+                        iso_utc(occurred_at),
+                        iso_utc(occurred_at),
+                        signal_id,
+                        variant.value,
+                        track["row_version"],
+                    ),
+                )
+                if updated.rowcount != 1:
+                    raise ConcurrencyError("Trade track changed during close")
+
+                connection.execute(
+                    """
+                    INSERT INTO outcomes(
+                        outcome_id, signal_id, variant, result, result_r,
+                        result_percent, close_reason, closed_at, details_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(uuid4()),
+                        signal_id,
+                        variant.value,
+                        result.value,
+                        result_r_text,
+                        result_percent_text,
+                        close_reason,
+                        iso_utc(occurred_at),
+                        _json(details or {}),
+                    ),
+                )
+                self._insert_event(
+                    connection,
+                    signal_id,
+                    variant,
+                    close_event,
+                    occurred_at,
+                    Decimal(close_price),
+                    {"result": result.value, "result_r": result_r_text},
+                    f"{dedupe_key}:reason",
+                )
+                self._insert_event(
+                    connection,
+                    signal_id,
+                    variant,
+                    TradeEventType.CLOSED,
+                    occurred_at,
+                    Decimal(close_price),
+                    {"close_reason": close_reason},
+                    f"{dedupe_key}:closed",
+                )
+
+                if variant is OutcomeVariant.MANAGED:
+                    signal_row = self._signal_row(connection, signal_id)
+                    current = SignalStatus(signal_row["lifecycle_status"])
+                    assert_transition(current, SignalStatus.CLOSED)
+                    status_update = connection.execute(
+                        """
+                        UPDATE signals
+                        SET lifecycle_status = 'CLOSED', updated_at = ?,
+                            row_version = row_version + 1
+                        WHERE signal_id = ? AND lifecycle_status = 'ACTIVE'
+                            AND row_version = ?
+                        """,
+                        (iso_utc(occurred_at), signal_id, signal_row["row_version"]),
+                    )
+                    if status_update.rowcount != 1:
+                        raise ConcurrencyError("Signal changed during managed close")
+        except sqlite3.IntegrityError as exc:
+            raise DuplicateRecordError(
+                f"Track {signal_id}/{variant.value} already has this close or outcome"
+            ) from exc
+
+    def _require_active_track(
+        self, connection: sqlite3.Connection, signal_id: str, variant: OutcomeVariant
+    ) -> sqlite3.Row:
+        row = connection.execute(
+            """
+            SELECT * FROM trade_tracks
+            WHERE signal_id = ? AND variant = ?
+            """,
+            (signal_id, variant.value),
+        ).fetchone()
+        if row is None:
+            raise RecordNotFoundError(f"Track {signal_id}/{variant.value} was not found")
+        if TrackStatus(row["track_status"]) is not TrackStatus.ACTIVE:
+            raise ConcurrencyError(f"Track {signal_id}/{variant.value} is already closed")
+        return row
+
+    def get_track_status(self, signal_id: str, variant: OutcomeVariant) -> TrackStatus:
+        row = self._connection.execute(
+            "SELECT track_status FROM trade_tracks WHERE signal_id = ? AND variant = ?",
+            (signal_id, variant.value),
+        ).fetchone()
+        if row is None:
+            raise RecordNotFoundError(f"Track {signal_id}/{variant.value} was not found")
+        return TrackStatus(row["track_status"])
+
+    def _insert_event(
+        self,
+        connection: sqlite3.Connection,
+        signal_id: str,
+        variant: OutcomeVariant | None,
+        event_type: TradeEventType,
+        occurred_at: datetime,
+        price: Decimal | None,
+        payload: dict[str, Any],
+        dedupe_key: str,
+    ) -> None:
+        connection.execute(
+            """
+            INSERT INTO trade_events(
+                event_id, signal_id, variant, event_type, occurred_at,
+                price, payload_json, dedupe_key, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(uuid4()),
+                signal_id,
+                None if variant is None else variant.value,
+                event_type.value,
+                iso_utc(occurred_at),
+                None if price is None else _decimal_text(price, "event_price"),
+                _json(payload),
+                dedupe_key,
+                iso_utc(occurred_at),
+            ),
+        )
+
+    def count_events(self, signal_id: str) -> int:
+        row = self._connection.execute(
+            "SELECT COUNT(*) AS count FROM trade_events WHERE signal_id = ?", (signal_id,)
+        ).fetchone()
+        assert row is not None
+        return int(row["count"])
+
+    def enqueue_alert(
+        self,
+        message_type: str,
+        payload: dict[str, Any],
+        dedupe_key: str,
+        created_at: datetime,
+        signal_id: str | None = None,
+    ) -> str:
+        outbox_id = str(uuid4())
+        timestamp = iso_utc(created_at)
+        try:
+            with self._transaction() as connection:
+                connection.execute(
+                    """
+                    INSERT INTO outbox(
+                        outbox_id, signal_id, message_type, payload_json,
+                        delivery_status, dedupe_key, attempt_count, available_at,
+                        created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, 'PENDING', ?, 0, ?, ?, ?)
+                    """,
+                    (
+                        outbox_id,
+                        signal_id,
+                        message_type,
+                        _json(payload),
+                        dedupe_key,
+                        timestamp,
+                        timestamp,
+                        timestamp,
+                    ),
+                )
+        except sqlite3.IntegrityError as exc:
+            raise DuplicateRecordError(f"Alert {dedupe_key} already exists") from exc
+        return outbox_id
+
+    def count_outbox(self) -> int:
+        row = self._connection.execute("SELECT COUNT(*) AS count FROM outbox").fetchone()
+        assert row is not None
+        return int(row["count"])
+
+    def put_setting(self, key: str, value: str, updated_at: datetime) -> None:
+        normalized = key.strip().upper()
+        if not normalized or any(part in normalized for part in _SENSITIVE_SETTING_PARTS):
+            raise SecurityError("Secrets and identity values cannot be stored in bot_settings")
+        with self._transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO bot_settings(setting_key, setting_value, updated_at, row_version)
+                VALUES (?, ?, ?, 1)
+                ON CONFLICT(setting_key) DO UPDATE SET
+                    setting_value = excluded.setting_value,
+                    updated_at = excluded.updated_at,
+                    row_version = bot_settings.row_version + 1
+                """,
+                (normalized, value, iso_utc(updated_at)),
+            )
+
+    def get_setting(self, key: str) -> str | None:
+        row = self._connection.execute(
+            "SELECT setting_value FROM bot_settings WHERE setting_key = ?",
+            (key.strip().upper(),),
+        ).fetchone()
+        return None if row is None else str(row["setting_value"])
