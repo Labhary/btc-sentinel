@@ -48,9 +48,7 @@ class MigrationTests(unittest.TestCase):
         )
 
         with self.assertRaises(sqlite3.IntegrityError):
-            self.connection.execute(
-                "UPDATE telegram_updates SET update_id = 2 WHERE update_id = 1"
-            )
+            self.connection.execute("UPDATE telegram_updates SET update_id = 2 WHERE update_id = 1")
         with self.assertRaises(sqlite3.IntegrityError):
             self.connection.execute("DELETE FROM telegram_updates WHERE update_id = 1")
 

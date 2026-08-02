@@ -119,9 +119,7 @@ class BinanceCandleClientTests(unittest.TestCase):
 
     def test_adds_bounded_utc_time_range_parameters(self) -> None:
         candle = make_series(MarketInterval.ONE_HOUR, count=1).latest
-        transport = StubJsonTransport(
-            {(SPOT_ORIGIN, "/api/v3/klines"): [candle_row(candle)]}
-        )
+        transport = StubJsonTransport({(SPOT_ORIGIN, "/api/v3/klines"): [candle_row(candle)]})
         client = BinancePublicClient(transport)
         start = NOW - timedelta(hours=2)
         end = NOW - timedelta(hours=1)
@@ -229,9 +227,7 @@ class BinanceDerivativesClientTests(unittest.TestCase):
             "timestamp": milliseconds(NOW - timedelta(minutes=5)),
         }
         client = BinancePublicClient(
-            StubJsonTransport(
-                {(FUTURES_ORIGIN, "/futures/data/openInterestHist"): [row, row]}
-            )
+            StubJsonTransport({(FUTURES_ORIGIN, "/futures/data/openInterestHist"): [row, row]})
         )
         with self.assertRaises(MarketDataValidationError):
             client.open_interest_history(DerivativesPeriod.FIVE_MINUTES, limit=2)

@@ -88,9 +88,7 @@ def milliseconds(value: datetime) -> int:
     epoch = datetime(1970, 1, 1, tzinfo=UTC)
     difference = value - epoch
     return (
-        difference.days * 86_400_000
-        + difference.seconds * 1000
-        + difference.microseconds // 1000
+        difference.days * 86_400_000 + difference.seconds * 1000 + difference.microseconds // 1000
     )
 
 

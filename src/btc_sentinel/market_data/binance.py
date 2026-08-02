@@ -70,9 +70,7 @@ class BinancePublicClient:
         params = self._candle_params(interval, limit, start_at, end_at)
         payload = self.transport.get_json(FUTURES_ORIGIN, "/fapi/v1/klines", params)
         reference_time = (
-            self.futures_server_time()
-            if as_of is None
-            else utc_datetime(as_of, "as_of")
+            self.futures_server_time() if as_of is None else utc_datetime(as_of, "as_of")
         )
         return self._parse_candles(payload, MarketVenue.FUTURES, interval).closed_at(reference_time)
 
@@ -323,9 +321,7 @@ def _milliseconds(value: datetime) -> int:
     epoch = datetime(1970, 1, 1, tzinfo=UTC)
     difference = value - epoch
     return (
-        difference.days * 86_400_000
-        + difference.seconds * 1000
-        + difference.microseconds // 1000
+        difference.days * 86_400_000 + difference.seconds * 1000 + difference.microseconds // 1000
     )
 
 

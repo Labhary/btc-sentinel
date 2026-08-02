@@ -36,4 +36,3 @@ class MarketDataHttpError(MarketDataTransportError):
 
 class MarketDataResponseTooLargeError(MarketDataTransportError):
     """An upstream response exceeded the configured safety limit."""
-

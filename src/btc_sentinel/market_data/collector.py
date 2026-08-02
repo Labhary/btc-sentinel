@@ -186,14 +186,10 @@ class MarketDataCollector:
                 name="open interest",
             )
             spot_one_minute = next(
-                series
-                for series in spot_series
-                if series.interval is MarketInterval.ONE_MINUTE
+                series for series in spot_series if series.interval is MarketInterval.ONE_MINUTE
             )
             futures_one_minute = next(
-                series
-                for series in futures_series
-                if series.interval is MarketInterval.ONE_MINUTE
+                series for series in futures_series if series.interval is MarketInterval.ONE_MINUTE
             )
             ensure_price_coherence(spot_one_minute.latest.close, funding.mark_price)
             ensure_price_coherence(spot_one_minute.latest.close, funding.index_price)
@@ -315,10 +311,7 @@ class MarketDataCollector:
                     as_of=as_of,
                 )
                 futures.append(series)
-            if (
-                series.venue is not requirement.venue
-                or series.interval is not requirement.interval
-            ):
+            if series.venue is not requirement.venue or series.interval is not requirement.interval:
                 raise MarketDataValidationError(
                     "Market-data client returned a series for the wrong venue or interval"
                 )

@@ -219,9 +219,7 @@ class MarketDataCollectorTests(unittest.TestCase):
             )
         with self.assertRaises(ValueError):
             MarketDataPolicy(
-                requirements=(
-                    SeriesRequirement(MarketVenue.SPOT, MarketInterval.ONE_MINUTE, 2, 3),
-                )
+                requirements=(SeriesRequirement(MarketVenue.SPOT, MarketInterval.ONE_MINUTE, 2, 3),)
             )
 
 

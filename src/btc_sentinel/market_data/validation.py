@@ -94,4 +94,3 @@ def ensure_observation_fresh(
         raise MarketDataValidationError(f"{name} is timestamped in the future")
     if age > maximum_age:
         raise MarketDataValidationError(f"{name} is stale")
-

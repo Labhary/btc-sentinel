@@ -103,12 +103,15 @@ class Candle:
             raise MarketDataValidationError("Candle OHLC values are contradictory")
         if self.high < self.low:
             raise MarketDataValidationError("Candle high cannot be below candle low")
-        if min(
-            self.volume,
-            self.quote_volume,
-            self.taker_buy_base_volume,
-            self.taker_buy_quote_volume,
-        ) < 0:
+        if (
+            min(
+                self.volume,
+                self.quote_volume,
+                self.taker_buy_base_volume,
+                self.taker_buy_quote_volume,
+            )
+            < 0
+        ):
             raise MarketDataValidationError("Candle volumes cannot be negative")
         if self.taker_buy_base_volume > self.volume:
             raise MarketDataValidationError("Taker-buy base volume cannot exceed total volume")
@@ -381,8 +384,7 @@ class MarketSnapshot:
                 "Futures snapshot series must come from the futures venue"
             )
         keys = [
-            (series.venue, series.interval)
-            for series in (*self.spot_series, *self.futures_series)
+            (series.venue, series.interval) for series in (*self.spot_series, *self.futures_series)
         ]
         if len(keys) != len(set(keys)):
             raise MarketDataValidationError("A snapshot contains duplicate venue/interval series")

@@ -62,11 +62,7 @@ class MarketInterval(StrEnum):
             return value.minute == 0 and value.hour == 0
         if self is MarketInterval.ONE_WEEK:
             return value.minute == 0 and value.hour == 0 and value.weekday() == 0
-        return (
-            value.minute == 0
-            and value.hour == 0
-            and value.day == 1
-        )
+        return value.minute == 0 and value.hour == 0 and value.day == 1
 
 
 class DerivativesPeriod(StrEnum):
@@ -96,4 +92,3 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise MarketDataValidationError("Market-data timestamps must be timezone-aware")
     return value.astimezone(UTC)
-
