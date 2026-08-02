@@ -8,10 +8,10 @@ add files without activating production schedules.
 2. **Telegram foundation — complete**
    Command Worker, webhook authentication, owner authorization, message
    templates, fake transport, pause/resume.
-3. **Market data — next**
+3. **Market data — complete**
    Spot/futures candles, funding, open interest, taker data, validation,
    retries, rate limits, stale detection.
-4. **Multi-timeframe analysis**
+4. **Multi-timeframe analysis — next**
    Indicators, structure, zones, regime, evidence-group scoring.
 5. **News and macro risk**
    Official feeds, scheduled releases, GDELT, deduplication, source confidence,

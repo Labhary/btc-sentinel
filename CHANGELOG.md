@@ -2,6 +2,20 @@
 
 All notable project changes are recorded here.
 
+## 0.3.0 — 2026-08-02
+
+- Added strict unauthenticated Binance Spot and USD-M futures clients for BTCUSDT.
+- Added immutable candle, funding, open-interest, taker-volume, and order-book models.
+- Added completed-candle filtering, continuity, UTC alignment, freshness, and
+  cross-source price and clock validation.
+- Added bounded HTTP timeouts, response sizes, retries, exponential backoff,
+  rate-limit handling, redirect rejection, and short-lived request coalescing.
+- Added a fail-closed coherent snapshot collector with explicit degradation for
+  optional historical and order-book context.
+- Documented public endpoint roles, retention limits, and why liquidation
+  snapshots are excluded from deterministic historical evidence.
+- Added deterministic parsing and failure-mode tests for the market-data engine.
+
 ## 0.2.0 — 2026-08-02
 
 - Added the Cloudflare command Worker foundation.
