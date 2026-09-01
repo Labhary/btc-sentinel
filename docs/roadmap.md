@@ -16,9 +16,9 @@ add files without activating production schedules.
 5. **News and macro risk — complete**
    Official feeds, scheduled releases, GDELT, deduplication, source confidence,
    no-trade windows.
-6. **Signal engine — next**
+6. **Signal engine — complete**
    Conservative fill model, stop/targets, net R, expiry, selectivity, cooldown.
-7. **Lifecycle and persistence**
+7. **Lifecycle and persistence — next**
    One-minute replay, ambiguous-candle handling, fixed/managed tracks.
 8. **Position management**
    Strict versioned actions, partial accounting, no hindsight.
