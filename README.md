@@ -4,10 +4,11 @@ BTC Sentinel is a BTC/USDT-only market-analysis and paper-trading alert bot. It
 is being built as a deterministic, auditable system: market levels come from
 market data and rules, not from a language model.
 
-> **Current status:** Phases 1–4 are implemented and tested. The project now has
+> **Current status:** Phases 1–5 are implemented and tested. The project now has
 > an owner-only Telegram command foundation, a strict Binance public-data engine,
-> and deterministic multi-timeframe analysis. Signals and deployment remain
-> disabled, so this must not yet be treated as a trading tool.
+> deterministic multi-timeframe analysis, and a fail-closed news/macro risk
+> filter. Signals and deployment remain disabled, so this must not yet be
+> treated as a trading tool.
 
 ## Non-negotiable behavior
 
@@ -40,14 +41,14 @@ checkpoint. This makes paper-trade accounting recoverable, but it does not make
 GitHub Actions a real-time execution platform.
 
 See [architecture.md](docs/architecture.md),
-[data-sources.md](docs/data-sources.md), and
+[data-sources.md](docs/data-sources.md), [news-risk.md](docs/news-risk.md), and
 [requirements-review.md](docs/requirements-review.md) for the trade-offs and
 hard limits.
 
 ## Repository map
 
 ```text
-src/btc_sentinel/       Python domain, persistence, market-data, and analysis engines
+src/btc_sentinel/       Python domain, market-data, analysis, and news-risk engines
 migrations/             SQLite/D1-compatible migrations
 tests/                  Python domain and migration tests
 worker/                 Telegram command Worker and TypeScript tests

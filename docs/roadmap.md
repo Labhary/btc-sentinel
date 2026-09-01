@@ -13,10 +13,10 @@ add files without activating production schedules.
    retries, rate limits, stale detection.
 4. **Multi-timeframe analysis — complete**
    Indicators, structure, zones, regime, evidence-group scoring.
-5. **News and macro risk — next**
+5. **News and macro risk — complete**
    Official feeds, scheduled releases, GDELT, deduplication, source confidence,
    no-trade windows.
-6. **Signal engine**
+6. **Signal engine — next**
    Conservative fill model, stop/targets, net R, expiry, selectivity, cooldown.
 7. **Lifecycle and persistence**
    One-minute replay, ambiguous-candle handling, fixed/managed tracks.

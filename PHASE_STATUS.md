@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-02
+Last updated: 2026-09-01
 
 ## Completed — Phase 1
 
@@ -52,14 +52,27 @@ Last updated: 2026-08-02
   volatility behavior.
 - Setup-quality scoring explicitly modeled as agreement, never win probability.
 
-## Next — Phase 5
+## Completed — Phase 5
 
-- Official news and economic-event sources.
-- Deduplication and reliability classification.
-- Event risk windows and fail-closed trade blocking.
+- Fixed HTTPS sources for Federal Reserve and SEC releases, BLS scheduled
+  economic events, Coinbase incidents, and optional GDELT discovery.
+- Bounded, unauthenticated RSS/Atom, iCalendar, and JSON collection with no
+  redirects and independent required/optional coverage tracking.
+- Deterministic relevance, category, direction, volatility, deduplication,
+  official/corroborated confirmation, and explicit reliability scores.
+- Conservative scheduled-event windows and post-headline market-confirmation
+  waits, with fail-closed required coverage.
+- News modeled only as a risk filter; it cannot create a signal or trade bias.
+
+## Next — Phase 6
+
+- Conservative signal admission from validated Phase 4 analysis context.
+- Entry, stop, targets, modeled costs, minimum 2R, expiry, and cooldown.
+- News-risk approval as a required gate, never a signal source.
 
 ## Not implemented yet
 
-Deployment is not active. News ingestion, signal generation, live lifecycle
-monitoring, reports, statistics, and backtesting remain disabled until their
-phases are implemented and tested.
+Deployment is not active. Signal generation, live lifecycle monitoring,
+reports, statistics, and backtesting remain disabled until their phases are
+implemented and tested. Phase 5 collection is implemented as a library but no
+production schedule or external write is enabled.

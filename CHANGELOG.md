@@ -2,6 +2,24 @@
 
 All notable project changes are recorded here.
 
+## 0.5.0 — 2026-09-01
+
+- Added fixed, unauthenticated HTTPS collection for official Federal Reserve,
+  SEC, BLS, and Coinbase status sources, with optional GDELT discovery.
+- Added bounded RSS/Atom, iCalendar, and JSON parsing; redirect rejection;
+  response-size limits; bounded retries; and independent source failures.
+- Added deterministic relevance, category, direction, volatility,
+  deduplication, official confirmation, cross-domain corroboration, and 0–100
+  reliability scoring.
+- Added conservative scheduled macro-event windows and market-confirmation
+  waits after verified high-impact news.
+- Added fail-closed required-source coverage and explicit degraded handling for
+  optional sources.
+- Enforced that news can only block or delay a setup and can never create a
+  signal, entry, stop, target, or trading direction.
+- Added 47 deterministic Phase 5 tests. No schedules, deployment, private API
+  access, or trading permissions were enabled.
+
 ## 0.4.0 — 2026-09-01
 
 - Added dependency-free completed-candle EMA, RSI, MACD, ADX, ATR, Bollinger,
