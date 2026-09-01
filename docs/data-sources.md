@@ -57,3 +57,7 @@ Official references:
 - [Binance Spot REST market data](https://developers.binance.com/en/docs/catalog/core-trading-spot-trading/api/rest-api/market)
 - [Binance USD-M Futures REST market data](https://developers.binance.com/en/docs/catalog/core-trading-derivatives-trading-usd-s-m-futures/api/rest-api/market-data)
 - [Binance USD-M liquidation streams](https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams/Liquidation-Order-Streams)
+
+Phase 5 news and macro inputs have a separate fixed-source, trust, and failure
+contract in [news-risk.md](news-risk.md). They can only restrict signal
+admission; they cannot supply price levels or create a directional setup.
