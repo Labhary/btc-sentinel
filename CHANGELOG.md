@@ -2,6 +2,23 @@
 
 All notable project changes are recorded here.
 
+## 0.6.0 — 2026-09-01
+
+- Added a deterministic Phase 6 signal engine that recomputes Phase 4 analysis
+  rather than trusting a caller-provided score.
+- Added selective admission gates for a minimum 80/100 evidence score, aligned
+  directional trend, complete ordered timeframe hierarchy, aligned one-hour
+  and 15-minute execution context, input freshness, active trade, and cooldown.
+- Added structure-zone entries, ATR-buffered stops, four-hour expiry, and
+  conservative zone-edge fill assumptions.
+- Added 2.25R and 3.25R targets net of modeled 0.15% round-trip costs, with
+  rejection when one-hour structure obstructs TP1.
+- Integrated Phase 5 as a strict risk gate: blocking news rejects a candidate,
+  while caution cannot choose direction and only reduces suggested paper risk.
+- Reduced suggested paper risk when optional derivatives context is degraded.
+- Added 28 deterministic Phase 6 tests. No persistence, scheduling, Telegram
+  delivery, deployment, private API access, or trading capability was enabled.
+
 ## 0.5.0 — 2026-09-01
 
 - Added fixed, unauthenticated HTTPS collection for official Federal Reserve,

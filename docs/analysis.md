@@ -2,6 +2,7 @@
 
 Phase 4 converts one validated Phase 3 snapshot into transparent analysis
 context. It does not create a trade, entry, stop, target, or Telegram alert.
+Phase 6 consumes this context under the separate [signal policy](signals.md).
 
 ## Completed-candle hierarchy
 

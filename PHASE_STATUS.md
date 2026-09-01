@@ -64,15 +64,29 @@ Last updated: 2026-09-01
   waits, with fail-closed required coverage.
 - News modeled only as a risk filter; it cannot create a signal or trade bias.
 
-## Next — Phase 6
+## Completed — Phase 6
 
-- Conservative signal admission from validated Phase 4 analysis context.
-- Entry, stop, targets, modeled costs, minimum 2R, expiry, and cooldown.
-- News-risk approval as a required gate, never a signal source.
+- Phase 4 analysis is recomputed from the supplied snapshot before admission;
+  caller-provided scores are never trusted.
+- Selective trend, score, hierarchy, execution-alignment, freshness, active
+  trade, and four-hour cooldown gates.
+- Structure/ATR entry and stop construction with conservative zone-edge fills.
+- Two deterministic targets at least 2.25R and 3.25R net of modeled round-trip
+  costs, plus one-hour obstacle rejection.
+- Blocking news rejects a setup; caution and degraded optional market context
+  reduce suggested paper risk without choosing direction.
+- Immutable pending paper-signal output only; no persistence, alert delivery,
+  lifecycle monitoring, deployment, or order capability.
+
+## Next — Phase 7
+
+- One-minute deterministic entry, expiry, target, and stop reconstruction.
+- Ambiguous-candle fail-closed ordering and restart-safe checkpoints.
+- Durable activation and parallel fixed/managed tracks.
 
 ## Not implemented yet
 
-Deployment is not active. Signal generation, live lifecycle monitoring,
-reports, statistics, and backtesting remain disabled until their phases are
-implemented and tested. Phase 5 collection is implemented as a library but no
-production schedule or external write is enabled.
+Deployment is not active. Phase 6 constructs candidate records only inside the
+library. Lifecycle monitoring, Telegram signal delivery, reports, statistics,
+and backtesting remain disabled until their phases are implemented and tested.
+No production schedule or external write is enabled.
