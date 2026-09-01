@@ -39,15 +39,27 @@ Last updated: 2026-08-02
 - Deterministic fixtures and malformed, stale, contradictory, gap, outage, and
   rate-limit tests.
 
-## Next — Phase 4
+## Completed — Phase 4
 
-- Completed-candle indicators.
-- Market structure and deterministic support/resistance zones.
-- Hierarchical monthly-to-15-minute regime classification.
-- Evidence-group scoring without double counting.
+- Completed-candle EMA, RSI, MACD, ADX, ATR, Bollinger, rolling VWAP, and
+  volume calculations using dependency-free Decimal arithmetic.
+- Deterministic swing structure, break/change detection, and bounded
+  support/resistance zones.
+- Hierarchical monthly-to-15-minute regime and directional-bias analysis.
+- Five evidence groups with fixed weights so correlated indicators are not
+  counted as independent votes.
+- Fail-closed conflict, incomplete-candle, missing-timeframe, and abnormal
+  volatility behavior.
+- Setup-quality scoring explicitly modeled as agreement, never win probability.
+
+## Next — Phase 5
+
+- Official news and economic-event sources.
+- Deduplication and reliability classification.
+- Event risk windows and fail-closed trade blocking.
 
 ## Not implemented yet
 
-Deployment is not active. Indicators, regime classification, news ingestion,
-signal generation, live lifecycle monitoring, reports, statistics, and
-backtesting remain disabled until their phases are implemented and tested.
+Deployment is not active. News ingestion, signal generation, live lifecycle
+monitoring, reports, statistics, and backtesting remain disabled until their
+phases are implemented and tested.
