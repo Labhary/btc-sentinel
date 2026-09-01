@@ -2,6 +2,23 @@
 
 All notable project changes are recorded here.
 
+## 0.4.0 — 2026-09-01
+
+- Added dependency-free completed-candle EMA, RSI, MACD, ADX, ATR, Bollinger,
+  rolling VWAP, volume, and relative-volatility calculations.
+- Added deterministic swing structure, break/change context, and bounded
+  support/resistance zones.
+- Added monthly-through-15-minute hierarchical regime and directional analysis.
+- Added fixed evidence-group weights that prevent correlated trend indicators
+  from being counted as independent evidence.
+- Added explicit no-trade outcomes for major-timeframe conflicts, missing or
+  incomplete required data, and abnormal relative volatility.
+- Added 24 deterministic Phase 4 tests. No signals, deployment, or trading
+  permissions were enabled.
+- Refreshed Wrangler and Cloudflare type development dependencies to remove
+  newly disclosed transitive `nanoid` and `undici` vulnerabilities; Worker
+  source behavior is unchanged.
+
 ## 0.3.0 — 2026-08-02
 
 - Added strict unauthenticated Binance Spot and USD-M futures clients for BTCUSDT.

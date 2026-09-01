@@ -11,9 +11,9 @@ add files without activating production schedules.
 3. **Market data — complete**
    Spot/futures candles, funding, open interest, taker data, validation,
    retries, rate limits, stale detection.
-4. **Multi-timeframe analysis — next**
+4. **Multi-timeframe analysis — complete**
    Indicators, structure, zones, regime, evidence-group scoring.
-5. **News and macro risk**
+5. **News and macro risk — next**
    Official feeds, scheduled releases, GDELT, deduplication, source confidence,
    no-trade windows.
 6. **Signal engine**
