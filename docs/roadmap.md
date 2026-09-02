@@ -27,9 +27,9 @@ add files without activating production schedules.
 9. **Statistics — complete**
    Recalculate on each managed close and update when a fixed virtual track later
    resolves.
-10. **Reports — next**
+10. **Reports — complete**
     Monthly, weekly, daily, news risk, active/pending status.
-11. **Backtesting**
+11. **Backtesting — next**
     Regime coverage, costs, walk-forward evaluation, sensitivity, stability.
 12. **Free deployment**
     D1 migration, Worker deployment, encrypted secrets, cron-to-workflow
