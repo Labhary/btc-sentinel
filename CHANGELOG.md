@@ -2,6 +2,22 @@
 
 All notable project changes are recorded here.
 
+## 0.7.0 — 2026-09-02
+
+- Added deterministic replay of completed Binance Spot one-minute candles for
+  pending entry, expiry, TP1, and stop lifecycle transitions.
+- Added conservative zone-edge fills, adverse opening-price fills when an
+  already-active trade gaps through its stop, and cost-aware R accounting.
+- Counted a same-candle TP1 and stop as a stop loss, and deferred targets first
+  observed on the activation candle because intraminute ordering is unknown.
+- Added durable activation timestamps, stable event deduplication keys, and
+  monotonic replay checkpoints so interrupted runs resume without inventing
+  wins or duplicating outcomes.
+- Activated fixed and managed paper tracks together while allowing either track
+  to finish independently.
+- Added deterministic Phase 7 tests. No schedule, Telegram signal delivery,
+  deployment, private API access, or trading capability was enabled.
+
 ## 0.6.0 — 2026-09-01
 
 - Added a deterministic Phase 6 signal engine that recomputes Phase 4 analysis

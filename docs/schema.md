@@ -53,6 +53,12 @@ stateDiagram-v2
 Target hits and close reasons are events attached to the relevant track; they
 are not extra lifecycle states.
 
+Phase 7 reconstructs these transitions from contiguous completed Spot
+one-minute candles. Its signal-specific checkpoint stores the last fully
+processed candle open time. Activation time is durable, so replay after a crash
+cannot reinterpret the activation candle as a later target hit. Same-candle
+target/stop ambiguity is recorded explicitly and resolved stop-first.
+
 ## Idempotency
 
 - Each signal ID is unique.
