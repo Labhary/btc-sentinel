@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from btc_sentinel.domain.enums import (
     OutcomeResult,
@@ -14,8 +14,10 @@ from btc_sentinel.domain.enums import (
     TradeEventType,
 )
 from btc_sentinel.domain.models import Signal
-from btc_sentinel.lifecycle.models import LifecycleSignal
-from btc_sentinel.management.models import ManagementDecision
+
+if TYPE_CHECKING:
+    from btc_sentinel.lifecycle.models import LifecycleSignal
+    from btc_sentinel.management.models import ManagementDecision
 
 
 class Repository(Protocol):
@@ -65,3 +67,5 @@ class Repository(Protocol):
     def apply_management_decision(self, decision: ManagementDecision) -> None: ...
 
     def management_decision_exists(self, dedupe_key: str) -> bool: ...
+
+    def get_latest_statistics_snapshot(self) -> dict[str, Any] | None: ...

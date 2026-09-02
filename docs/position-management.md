@@ -49,7 +49,8 @@ is added to `realized_r` and the open fraction is reduced. Final managed R is:
 `realized partial R + remaining fraction × full-position R at final exit`
 
 The fixed result continues independently even if the managed track closes.
-Break-even results remain separate from wins when Phase 9 calculates statistics.
+Break-even results remain separate from wins under the Phase 9
+[statistics policy](statistics.md).
 
 No current rule proves a 60% win rate. Stop protection can reduce losses while
 also converting future winners into break-even exits. Only out-of-sample
