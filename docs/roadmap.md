@@ -18,9 +18,10 @@ add files without activating production schedules.
    no-trade windows.
 6. **Signal engine — complete**
    Conservative fill model, stop/targets, net R, expiry, selectivity, cooldown.
-7. **Lifecycle and persistence — next**
-   One-minute replay, ambiguous-candle handling, fixed/managed tracks.
-8. **Position management**
+7. **Lifecycle and persistence — complete**
+   Restart-safe one-minute replay, conservative ambiguous-candle handling,
+   durable fixed/managed tracks.
+8. **Position management — next**
    Strict versioned actions, partial accounting, no hindsight.
 9. **Statistics**
    Recalculate on each managed close and update when a fixed virtual track later

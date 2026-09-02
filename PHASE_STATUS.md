@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ## Completed — Phase 1
 
@@ -78,15 +78,27 @@ Last updated: 2026-09-01
 - Immutable pending paper-signal output only; no persistence, alert delivery,
   lifecycle monitoring, deployment, or order capability.
 
-## Next — Phase 7
+## Completed — Phase 7
 
-- One-minute deterministic entry, expiry, target, and stop reconstruction.
-- Ambiguous-candle fail-closed ordering and restart-safe checkpoints.
-- Durable activation and parallel fixed/managed tracks.
+- Completed Spot one-minute candle replay for deterministic entry, expiry,
+  target, and stop reconstruction.
+- Conservative zone-edge activation, adverse stop-gap fills, and TP1 terminal
+  accounting net of modeled round-trip costs.
+- Stop-first loss accounting when TP1 and stop occur in the same candle, with
+  activation-candle targets deferred because event order is unknowable.
+- Durable activation timestamps, stable event keys, monotonic checkpoints, and
+  restart-safe replay.
+- Parallel fixed and managed tracks activated and resolved independently.
+
+## Next — Phase 8
+
+- Versioned managed-position actions using information available at the time.
+- Partial-close, stop-move, and break-even accounting without hindsight.
+- Fixed baseline remains unchanged for honest comparison.
 
 ## Not implemented yet
 
-Deployment is not active. Phase 6 constructs candidate records only inside the
-library. Lifecycle monitoring, Telegram signal delivery, reports, statistics,
-and backtesting remain disabled until their phases are implemented and tested.
-No production schedule or external write is enabled.
+Deployment is not active. Phase 7 provides a local lifecycle replay library;
+no production monitor or schedule invokes it. Telegram signal delivery,
+position management, reports, statistics, and backtesting remain disabled until
+their phases are implemented and tested. No external write is enabled.

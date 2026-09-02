@@ -4,11 +4,12 @@ BTC Sentinel is a BTC/USDT-only market-analysis and paper-trading alert bot. It
 is being built as a deterministic, auditable system: market levels come from
 market data and rules, not from a language model.
 
-> **Current status:** Phases 1–6 are implemented and tested. The project now has
+> **Current status:** Phases 1–7 are implemented and tested. The project now has
 > an owner-only Telegram command foundation, a strict Binance public-data engine,
 > deterministic multi-timeframe analysis, and a fail-closed news/macro risk
-> filter. Phase 6 can construct selective pending paper-signal records, but
-> lifecycle monitoring, delivery, and deployment remain disabled. This must not
+> filter. Phase 7 can persist and conservatively reconstruct paper-signal
+> lifecycles from completed one-minute candles. Automated monitoring, signal
+> delivery, position management, and deployment remain disabled. This must not
 > yet be treated as a live trading tool.
 
 ## Non-negotiable behavior
@@ -42,14 +43,14 @@ checkpoint. This makes paper-trade accounting recoverable, but it does not make
 GitHub Actions a real-time execution platform.
 
 See [architecture.md](docs/architecture.md), [data-sources.md](docs/data-sources.md),
-[news-risk.md](docs/news-risk.md), [signals.md](docs/signals.md), and
-[requirements-review.md](docs/requirements-review.md) for the trade-offs and
-hard limits.
+[news-risk.md](docs/news-risk.md), [signals.md](docs/signals.md),
+[lifecycle.md](docs/lifecycle.md), and [requirements-review.md](docs/requirements-review.md)
+for the trade-offs and hard limits.
 
 ## Repository map
 
 ```text
-src/btc_sentinel/       Python domain, data, analysis, news-risk, and signal engines
+src/btc_sentinel/       Python domain, data, analysis, signal, and lifecycle engines
 migrations/             SQLite/D1-compatible migrations
 tests/                  Python domain and migration tests
 worker/                 Telegram command Worker and TypeScript tests

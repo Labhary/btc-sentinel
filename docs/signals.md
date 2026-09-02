@@ -1,8 +1,9 @@
 # Deterministic signal policy
 
 Phase 6 converts a validated snapshot into either one immutable pending paper
-setup or an auditable `NO_SIGNAL`. It does not persist, activate, monitor, send,
-or trade the setup. Those responsibilities begin in later phases.
+setup or an auditable `NO_SIGNAL`. It does not persist, activate, send, or trade
+the setup. Phase 7 defines the separate durable [lifecycle replay](lifecycle.md)
+policy; automated orchestration and delivery remain disabled.
 
 ## Admission gates
 

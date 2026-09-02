@@ -15,12 +15,13 @@ from uuid import uuid4
 from btc_sentinel.domain.enums import (
     OutcomeResult,
     OutcomeVariant,
+    Side,
     SignalStatus,
     TrackStatus,
     TradeEventType,
 )
 from btc_sentinel.domain.ids import format_signal_id
-from btc_sentinel.domain.models import Signal, as_decimal
+from btc_sentinel.domain.models import Signal, Target, as_decimal
 from btc_sentinel.domain.state_machine import assert_transition, transition_event
 from btc_sentinel.errors import (
     ConcurrencyError,
@@ -28,7 +29,8 @@ from btc_sentinel.errors import (
     RecordNotFoundError,
     SecurityError,
 )
-from btc_sentinel.time_utils import iso_utc
+from btc_sentinel.lifecycle.models import LifecycleSignal
+from btc_sentinel.time_utils import ensure_utc, iso_utc
 
 _CLOSE_EVENTS = {
     TradeEventType.TP1_HIT,
@@ -193,6 +195,51 @@ class SqliteRepository:
         if row is None:
             raise RecordNotFoundError(f"Signal {signal_id} was not found")
         return SignalStatus(row["lifecycle_status"])
+
+    def get_lifecycle_signal(self, signal_id: str) -> LifecycleSignal:
+        row = self._connection.execute(
+            """
+            SELECT s.*, t.fill_price, t.activated_at
+            FROM signals AS s
+            LEFT JOIN trades AS t ON t.signal_id = s.signal_id
+            WHERE s.signal_id = ?
+            """,
+            (signal_id,),
+        ).fetchone()
+        if row is None:
+            raise RecordNotFoundError(f"Signal {signal_id} was not found")
+        targets = self._connection.execute(
+            "SELECT ordinal, price FROM signal_targets WHERE signal_id = ? ORDER BY ordinal",
+            (signal_id,),
+        ).fetchall()
+        tracks = self._connection.execute(
+            """
+            SELECT variant FROM trade_tracks
+            WHERE signal_id = ? AND track_status = 'ACTIVE'
+            ORDER BY variant
+            """,
+            (signal_id,),
+        ).fetchall()
+
+        def parse_time(value: object) -> datetime:
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+
+        return LifecycleSignal(
+            signal_id=signal_id,
+            status=SignalStatus(row["lifecycle_status"]),
+            side=Side(row["side"]),
+            created_at=parse_time(row["created_at"]),
+            expires_at=parse_time(row["expires_at"]),
+            entry_low=Decimal(row["entry_low"]),
+            entry_high=Decimal(row["entry_high"]),
+            original_stop=Decimal(row["original_stop"]),
+            targets=tuple(Target(item["ordinal"], Decimal(item["price"])) for item in targets),
+            estimated_cost_rate=Decimal(row["estimated_cost_rate"]),
+            recommended_risk_percent=Decimal(row["recommended_risk_percent"]),
+            fill_price=None if row["fill_price"] is None else Decimal(row["fill_price"]),
+            activated_at=(None if row["activated_at"] is None else parse_time(row["activated_at"])),
+            active_variants=tuple(OutcomeVariant(item["variant"]) for item in tracks),
+        )
 
     def _signal_row(self, connection: sqlite3.Connection, signal_id: str) -> sqlite3.Row:
         row = connection.execute(
@@ -488,6 +535,43 @@ class SqliteRepository:
         if row is None:
             raise RecordNotFoundError(f"Track {signal_id}/{variant.value} was not found")
         return TrackStatus(row["track_status"])
+
+    def get_checkpoint(self, checkpoint_key: str) -> datetime | None:
+        row = self._connection.execute(
+            "SELECT last_processed_at FROM processing_checkpoints WHERE checkpoint_key = ?",
+            (checkpoint_key,),
+        ).fetchone()
+        if row is None:
+            return None
+        return ensure_utc(
+            datetime.fromisoformat(str(row["last_processed_at"]).replace("Z", "+00:00"))
+        )
+
+    def advance_checkpoint(
+        self,
+        checkpoint_key: str,
+        processed_at: datetime,
+        payload: dict[str, Any],
+    ) -> None:
+        if not checkpoint_key.strip():
+            raise ValueError("checkpoint_key is required")
+        timestamp = iso_utc(processed_at)
+        with self._transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO processing_checkpoints(
+                    checkpoint_key, last_processed_at, source_cursor,
+                    payload_json, updated_at, row_version
+                ) VALUES (?, ?, NULL, ?, ?, 1)
+                ON CONFLICT(checkpoint_key) DO UPDATE SET
+                    last_processed_at = excluded.last_processed_at,
+                    payload_json = excluded.payload_json,
+                    updated_at = excluded.updated_at,
+                    row_version = processing_checkpoints.row_version + 1
+                WHERE excluded.last_processed_at > processing_checkpoints.last_processed_at
+                """,
+                (checkpoint_key, timestamp, _json(payload), timestamp),
+            )
 
     def _insert_event(
         self,

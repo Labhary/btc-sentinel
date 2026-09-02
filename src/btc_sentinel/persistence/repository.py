@@ -14,6 +14,7 @@ from btc_sentinel.domain.enums import (
     TradeEventType,
 )
 from btc_sentinel.domain.models import Signal
+from btc_sentinel.lifecycle.models import LifecycleSignal
 
 
 class Repository(Protocol):
@@ -22,6 +23,8 @@ class Repository(Protocol):
     def create_signal(self, signal: Signal) -> None: ...
 
     def get_signal_status(self, signal_id: str) -> SignalStatus: ...
+
+    def get_lifecycle_signal(self, signal_id: str) -> LifecycleSignal: ...
 
     def activate_signal(
         self,
@@ -51,3 +54,9 @@ class Repository(Protocol):
     ) -> None: ...
 
     def get_track_status(self, signal_id: str, variant: OutcomeVariant) -> TrackStatus: ...
+
+    def get_checkpoint(self, checkpoint_key: str) -> datetime | None: ...
+
+    def advance_checkpoint(
+        self, checkpoint_key: str, processed_at: datetime, payload: dict[str, Any]
+    ) -> None: ...
