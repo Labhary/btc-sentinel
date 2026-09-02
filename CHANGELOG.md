@@ -2,6 +2,24 @@
 
 All notable project changes are recorded here.
 
+## 0.11.0 — 2026-09-02
+
+- Added conservative completed-candle replay for fixed and managed historical
+  signal tracks using continuous Spot BTCUSDT one-minute candles.
+- Added adverse zone-edge entry, stop-first ambiguity, worse-open gap fills,
+  expiry, explicit no-fill and unresolved outcomes, and cost-aware R results.
+- Added purged chronological walk-forward evaluation with fixed predeclared
+  score thresholds, regime coverage minimums, sensitivity, and cost stress.
+- Required both the observed strict win rate and its 95% Wilson lower bound to
+  exceed 60%, alongside positive out-of-sample expectancy and at least 2R
+  planned reward-to-risk, before a run can pass.
+- Added paired fixed-versus-managed comparison without hiding unresolved sides.
+- Added immutable run metadata that rejects undeclared strategy versions,
+  missing one-minute coverage, and declared cherry-picking.
+- Added deterministic Phase 11 tests. No representative historical dataset was
+  bundled or evaluated, so no win-rate or profitability claim is made. No
+  deployment, private API access, or trading capability was enabled.
+
 ## 0.10.0 — 2026-09-02
 
 - Added deterministic daily, weekly, and monthly paper reports using Casablanca

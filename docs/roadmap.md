@@ -29,9 +29,12 @@ add files without activating production schedules.
    resolves.
 10. **Reports — complete**
     Monthly, weekly, daily, news risk, active/pending status.
-11. **Backtesting — next**
-    Regime coverage, costs, walk-forward evaluation, sensitivity, stability.
-12. **Free deployment**
+11. **Backtesting — complete**
+    Conservative fixed/managed replay, regime coverage, costs, purged
+    walk-forward evaluation, sensitivity, and stability gates. The framework is
+    complete; a representative exhaustive historical run is still required
+    before any performance claim.
+12. **Free deployment — next**
     D1 migration, Worker deployment, encrypted secrets, cron-to-workflow
     dispatch, health.
 13. **Paper observation**
