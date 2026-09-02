@@ -2,6 +2,19 @@
 
 All notable project changes are recorded here.
 
+## 0.10.0 — 2026-09-02
+
+- Added deterministic daily, weekly, and monthly paper reports using Casablanca
+  calendar boundaries with UTC storage and queries.
+- Added active and pending BTCUSDT status reports with immutable terms, current
+  managed stop state, track visibility, and local timestamps.
+- Added fail-closed news-risk reports: missing, future-dated, and stale
+  assessments never render as clear.
+- Displayed strict fixed and managed win rates with sample size and 95% Wilson
+  intervals, keeping break-even and early exits separate.
+- Added bounded Telegram-ready payloads without chat identity, outbox writes,
+  delivery, production schedules, deployment, or trading capability.
+
 ## 0.9.0 — 2026-09-02
 
 - Added an atomic append-only Phase 9 statistics snapshot after every fixed or

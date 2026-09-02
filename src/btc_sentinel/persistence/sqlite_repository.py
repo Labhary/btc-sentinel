@@ -13,6 +13,7 @@ from typing import Any
 from uuid import uuid4
 
 from btc_sentinel.domain.enums import (
+    MarketRegime,
     OutcomeResult,
     OutcomeVariant,
     Side,
@@ -31,6 +32,7 @@ from btc_sentinel.errors import (
 )
 from btc_sentinel.lifecycle.models import LifecycleSignal, TrackState
 from btc_sentinel.management.models import ManagementDecision
+from btc_sentinel.reports.models import ReportSignal
 from btc_sentinel.statistics import OutcomeSample, calculate_statistics
 from btc_sentinel.time_utils import ensure_utc, iso_utc
 
@@ -758,6 +760,105 @@ class SqliteRepository:
             "payload": json.loads(row["payload_json"]),
             "dedupe_key": row["dedupe_key"],
         }
+
+    def list_outcome_samples(
+        self,
+        start_at: datetime | None = None,
+        end_at: datetime | None = None,
+    ) -> tuple[OutcomeSample, ...]:
+        """Read immutable outcome samples within a half-open UTC window."""
+        clauses: list[str] = []
+        parameters: list[str] = []
+        if start_at is not None:
+            clauses.append("o.closed_at >= ?")
+            parameters.append(iso_utc(start_at))
+        if end_at is not None:
+            clauses.append("o.closed_at < ?")
+            parameters.append(iso_utc(end_at))
+        where = "" if not clauses else "WHERE " + " AND ".join(clauses)
+        rows = self._connection.execute(
+            f"""
+            SELECT o.signal_id, o.variant, o.result, o.result_r, o.closed_at,
+                   s.strategy_version
+            FROM outcomes AS o
+            JOIN signals AS s ON s.signal_id = o.signal_id
+            {where}
+            ORDER BY o.closed_at, o.outcome_id
+            """,
+            parameters,
+        ).fetchall()
+        return tuple(
+            OutcomeSample(
+                signal_id=row["signal_id"],
+                variant=OutcomeVariant(row["variant"]),
+                result=OutcomeResult(row["result"]),
+                result_r=Decimal(row["result_r"]),
+                closed_at=datetime.fromisoformat(row["closed_at"].replace("Z", "+00:00")),
+                strategy_version=row["strategy_version"],
+            )
+            for row in rows
+        )
+
+    def list_report_signals(self, status: SignalStatus) -> tuple[ReportSignal, ...]:
+        """Load compact active or pending state without mutating lifecycle data."""
+        if status not in {SignalStatus.ACTIVE, SignalStatus.PENDING}:
+            raise ValueError("Reports can list only ACTIVE or PENDING signals")
+        rows = self._connection.execute(
+            """
+            SELECT s.*, t.fill_price, t.activated_at,
+                   managed.current_stop AS managed_stop,
+                   managed.track_status AS managed_track_status,
+                   fixed.track_status AS fixed_track_status
+            FROM signals AS s
+            LEFT JOIN trades AS t ON t.signal_id = s.signal_id
+            LEFT JOIN trade_tracks AS managed
+              ON managed.signal_id = s.signal_id AND managed.variant = 'MANAGED'
+            LEFT JOIN trade_tracks AS fixed
+              ON fixed.signal_id = s.signal_id AND fixed.variant = 'FIXED'
+            WHERE s.lifecycle_status = ?
+            ORDER BY s.created_at, s.signal_id
+            """,
+            (status.value,),
+        ).fetchall()
+
+        def parse_time(value: object) -> datetime:
+            return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+
+        result: list[ReportSignal] = []
+        for row in rows:
+            target_rows = self._connection.execute(
+                "SELECT ordinal, price FROM signal_targets WHERE signal_id = ? ORDER BY ordinal",
+                (row["signal_id"],),
+            ).fetchall()
+            result.append(
+                ReportSignal(
+                    signal_id=row["signal_id"],
+                    status=status,
+                    side=Side(row["side"]),
+                    regime=MarketRegime(row["regime"]),
+                    setup_score=int(row["setup_score"]),
+                    created_at=parse_time(row["created_at"]),
+                    expires_at=parse_time(row["expires_at"]),
+                    entry_low=Decimal(row["entry_low"]),
+                    entry_high=Decimal(row["entry_high"]),
+                    original_stop=Decimal(row["original_stop"]),
+                    targets=tuple(
+                        Target(target["ordinal"], Decimal(target["price"]))
+                        for target in target_rows
+                    ),
+                    strategy_version=row["strategy_version"],
+                    fill_price=(None if row["fill_price"] is None else Decimal(row["fill_price"])),
+                    activated_at=(
+                        None if row["activated_at"] is None else parse_time(row["activated_at"])
+                    ),
+                    managed_stop=(
+                        None if row["managed_stop"] is None else Decimal(row["managed_stop"])
+                    ),
+                    fixed_track_active=row["fixed_track_status"] == TrackStatus.ACTIVE.value,
+                    managed_track_active=row["managed_track_status"] == TrackStatus.ACTIVE.value,
+                )
+            )
+        return tuple(result)
 
     def _insert_event(
         self,

@@ -18,6 +18,8 @@ from btc_sentinel.domain.models import Signal
 if TYPE_CHECKING:
     from btc_sentinel.lifecycle.models import LifecycleSignal
     from btc_sentinel.management.models import ManagementDecision
+    from btc_sentinel.reports.models import ReportSignal
+    from btc_sentinel.statistics.models import OutcomeSample
 
 
 class Repository(Protocol):
@@ -69,3 +71,9 @@ class Repository(Protocol):
     def management_decision_exists(self, dedupe_key: str) -> bool: ...
 
     def get_latest_statistics_snapshot(self) -> dict[str, Any] | None: ...
+
+    def list_outcome_samples(
+        self, start_at: datetime | None = None, end_at: datetime | None = None
+    ) -> tuple[OutcomeSample, ...]: ...
+
+    def list_report_signals(self, status: SignalStatus) -> tuple[ReportSignal, ...]: ...
