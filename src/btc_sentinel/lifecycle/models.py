@@ -22,6 +22,22 @@ class LifecycleAction(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class TrackState:
+    variant: OutcomeVariant
+    current_stop: Decimal
+    remaining_fraction: Decimal
+    realized_r: Decimal
+
+    def __post_init__(self) -> None:
+        for name in ("current_stop", "remaining_fraction", "realized_r"):
+            object.__setattr__(self, name, as_decimal(getattr(self, name), name))
+        if self.current_stop <= 0:
+            raise DomainValidationError("Track stop must be positive")
+        if not Decimal("0") < self.remaining_fraction <= Decimal("1"):
+            raise DomainValidationError("Active track fraction must be between zero and one")
+
+
+@dataclass(frozen=True, slots=True)
 class LifecycleSignal:
     signal_id: str
     status: SignalStatus
@@ -36,7 +52,7 @@ class LifecycleSignal:
     recommended_risk_percent: Decimal
     fill_price: Decimal | None
     activated_at: datetime | None
-    active_variants: tuple[OutcomeVariant, ...]
+    active_tracks: tuple[TrackState, ...]
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "created_at", as_utc(self.created_at, "created_at"))
@@ -54,7 +70,7 @@ class LifecycleSignal:
         if self.activated_at is not None:
             object.__setattr__(self, "activated_at", as_utc(self.activated_at, "activated_at"))
         object.__setattr__(self, "targets", tuple(self.targets))
-        object.__setattr__(self, "active_variants", tuple(self.active_variants))
+        object.__setattr__(self, "active_tracks", tuple(self.active_tracks))
         if not self.signal_id or self.expires_at <= self.created_at:
             raise DomainValidationError("Lifecycle signal identity or time range is invalid")
         if self.entry_low <= 0 or self.entry_high < self.entry_low or self.original_stop <= 0:
@@ -72,6 +88,10 @@ class LifecycleSignal:
     def conservative_entry(self) -> Decimal:
         return self.entry_high if self.side is Side.LONG else self.entry_low
 
+    @property
+    def active_variants(self) -> tuple[OutcomeVariant, ...]:
+        return tuple(track.variant for track in self.active_tracks)
+
     def result_r(self, exit_price: Decimal) -> Decimal:
         if self.fill_price is None:
             raise DomainValidationError("Cannot calculate an outcome before activation")
@@ -87,6 +107,9 @@ class LifecycleSignal:
             price - self.fill_price if self.side is Side.LONG else self.fill_price - price
         )
         return (gross_result - cost) / total_risk
+
+    def track_result_r(self, track: TrackState, exit_price: Decimal) -> Decimal:
+        return track.realized_r + track.remaining_fraction * self.result_r(exit_price)
 
 
 @dataclass(frozen=True, slots=True)

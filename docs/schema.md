@@ -59,6 +59,13 @@ processed candle open time. Activation time is durable, so replay after a crash
 cannot reinterpret the activation candle as a later target hit. Same-candle
 target/stop ambiguity is recorded explicitly and resolved stop-first.
 
+Phase 8 records each managed-track decision in the append-only
+`management_decisions` ledger. A state-changing decision updates only the
+managed track's current stop, remaining fraction, and accumulated realized R.
+The fixed track is never updated by management. Each decision has a stable
+per-candle strategy key; its checkpoint advances separately so a crash cannot
+apply a different decision to the same candle.
+
 ## Idempotency
 
 - Each signal ID is unique.

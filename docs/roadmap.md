@@ -21,9 +21,10 @@ add files without activating production schedules.
 7. **Lifecycle and persistence — complete**
    Restart-safe one-minute replay, conservative ambiguous-candle handling,
    durable fixed/managed tracks.
-8. **Position management — next**
-   Strict versioned actions, partial accounting, no hindsight.
-9. **Statistics**
+8. **Position management — complete**
+   Strict versioned decisions, next-candle effect, optional partial accounting,
+   fixed baseline preserved.
+9. **Statistics — next**
    Recalculate on each managed close and update when a fixed virtual track later
    resolves.
 10. **Reports**
