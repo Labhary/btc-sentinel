@@ -2,6 +2,7 @@ import type { BotStore, Clock, OutboxMessage, TelegramSender } from "./contracts
 import type { WorkerConfig } from "./config";
 import { deliverOnce } from "./outbox/delivery";
 import { secureEquals } from "./security";
+import { handleStateApi } from "./state-api/routes";
 import { executeCommand } from "./telegram/commands";
 import { isAuthorizedPrivateOwner, parseCommand, parseTelegramUpdate } from "./telegram/update";
 import { addMinutes, isoUtc } from "./time";
@@ -102,10 +103,19 @@ export async function handleRequest(
 ): Promise<Response> {
   const url = new URL(request.url);
   if (request.method === "GET" && url.pathname === "/health") {
-    return jsonResponse({ status: "ok", phase: 2, symbol: "BTCUSDT" });
+    return jsonResponse({
+      status: "ok",
+      phase: 12,
+      symbol: "BTCUSDT",
+      production_dispatch_enabled: dependencies.config.productionDispatchEnabled,
+    });
   }
   if (request.method === "POST" && url.pathname === "/telegram/webhook") {
     return telegramWebhook(request, dependencies);
+  }
+  const stateResponse = await handleStateApi(request, dependencies);
+  if (stateResponse) {
+    return stateResponse;
   }
   return new Response(null, { status: 404 });
 }

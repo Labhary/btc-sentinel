@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MIGRATIONS = [
     ROOT / "migrations" / "0001_initial.sql",
     ROOT / "migrations" / "0002_telegram_foundation.sql",
+    ROOT / "migrations" / "0003_runtime_boundary.sql",
 ]
 
 
@@ -33,7 +34,38 @@ class MigrationTests(unittest.TestCase):
         versions = self.connection.execute(
             "SELECT version FROM schema_migrations ORDER BY version"
         ).fetchall()
-        self.assertEqual([row["version"] for row in versions], [1, 2])
+        self.assertEqual([row["version"] for row in versions], [1, 2, 3])
+
+    def test_runtime_nonce_and_dispatch_identity_are_durable(self) -> None:
+        self.migrate_all()
+        self.connection.execute(
+            """
+            INSERT INTO state_api_nonces(nonce, expires_at, created_at)
+            VALUES ('nonce-1', '2026-09-02T12:05:00Z', '2026-09-02T12:00:00Z')
+            """
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute(
+                "UPDATE state_api_nonces SET expires_at = '2026-09-02T12:10:00Z'"
+            )
+
+        self.connection.execute(
+            """
+            INSERT INTO workflow_dispatches(
+                dispatch_key, scheduled_at, claimed_at, status
+            ) VALUES ('tick-1', '2026-09-02T12:00:00Z',
+                      '2026-09-02T12:00:01Z', 'CLAIMED')
+            """
+        )
+        self.connection.execute(
+            """
+            UPDATE workflow_dispatches
+            SET status = 'SENT', finished_at = '2026-09-02T12:00:02Z'
+            WHERE dispatch_key = 'tick-1'
+            """
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute("DELETE FROM workflow_dispatches WHERE dispatch_key = 'tick-1'")
 
     def test_telegram_update_identity_is_immutable(self) -> None:
         self.migrate_all()

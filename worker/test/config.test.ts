@@ -39,4 +39,28 @@ describe("Worker configuration", () => {
 
     expect(() => loadConfig(environment)).toThrow("must differ");
   });
+
+  it("keeps production dispatch disabled by default", () => {
+    const config = loadConfig(validEnvironment());
+    expect(config.productionDispatchEnabled).toBe(false);
+    expect(config.githubActionsToken).toBeNull();
+  });
+
+  it("requires a token only when production dispatch is explicitly enabled", () => {
+    expect(() =>
+      loadConfig({ ...validEnvironment(), PRODUCTION_DISPATCH_ENABLED: "true" }),
+    ).toThrow(/GITHUB_ACTIONS_TOKEN/);
+    const config = loadConfig({
+      ...validEnvironment(),
+      PRODUCTION_DISPATCH_ENABLED: "true",
+      GITHUB_ACTIONS_TOKEN: "github-actions-token-value",
+    });
+    expect(config.productionDispatchEnabled).toBe(true);
+  });
+
+  it("rejects ambiguous dispatch flags", () => {
+    expect(() => loadConfig({ ...validEnvironment(), PRODUCTION_DISPATCH_ENABLED: "yes" })).toThrow(
+      /true or false/,
+    );
+  });
 });

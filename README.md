@@ -15,8 +15,10 @@ market data and rules, not from a language model.
 > Phase 11 adds conservative fixed/managed replay and purged walk-forward
 > evaluation. No representative historical dataset has been evaluated, so the
 > strict win-rate objective above 60% at 2R or better remains unproven.
-> Automated monitoring, report delivery, signal delivery, and deployment remain
-> disabled. This must not yet be treated as a live trading tool.
+> Phase 12 deployment boundaries are in preparation and remain hard-disabled;
+> the production orchestrator, report/signal delivery, resource provisioning,
+> and deployment are not complete. This must not yet be treated as a live
+> trading tool.
 
 ## Non-negotiable behavior
 
@@ -52,7 +54,7 @@ See [architecture.md](docs/architecture.md), [data-sources.md](docs/data-sources
 [news-risk.md](docs/news-risk.md), [signals.md](docs/signals.md),
 [lifecycle.md](docs/lifecycle.md), [position-management.md](docs/position-management.md),
 [statistics.md](docs/statistics.md), [reports.md](docs/reports.md),
-[backtesting.md](docs/backtesting.md), and
+[backtesting.md](docs/backtesting.md), [deployment-readiness.md](docs/deployment-readiness.md), and
 [requirements-review.md](docs/requirements-review.md) for the trade-offs and
 hard limits.
 
@@ -65,7 +67,7 @@ tests/                  Python domain and migration tests
 worker/                 Telegram command Worker and TypeScript tests
 scripts/                Repository safety checks
 docs/                   Architecture, schema, security, roadmap
-.github/workflows/      Python and Worker CI (no live schedule yet)
+.github/workflows/      CI and hard-disabled paper-runtime readiness workflow
 ```
 
 ## Local validation
@@ -98,8 +100,8 @@ npm run typecheck
 npm test
 ```
 
-Deployment stays intentionally disabled until Cloudflare D1 and encrypted
-secrets are configured. The Worker currently supports `/start`, `/help`,
+Deployment stays intentionally disabled until the missing production
+orchestrator and every readiness check are complete. The Worker currently supports `/start`, `/help`,
 `/status`, `/pause`, and `/resume` for one configured owner in a private chat.
 
 ## Secrets

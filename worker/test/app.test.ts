@@ -23,7 +23,12 @@ describe("Worker routes", () => {
     const body = await response.text();
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(JSON.parse(body)).toEqual({ status: "ok", phase: 2, symbol: "BTCUSDT" });
+    expect(JSON.parse(body)).toEqual({
+      status: "ok",
+      phase: 12,
+      symbol: "BTCUSDT",
+      production_dispatch_enabled: false,
+    });
     expect(body).not.toContain(testConfig.telegramWebhookSecret);
   });
 
