@@ -3,7 +3,7 @@
 This Worker is the small, immediate Telegram and D1 boundary. It does not
 calculate indicators or generate signals.
 
-## Phase 2 behavior
+## Runtime boundary
 
 - `GET /health` returns a minimal non-secret health response.
 - `POST /telegram/webhook` accepts Telegram updates only with the configured
@@ -14,6 +14,10 @@ calculate indicators or generate signals.
 - `/start`, `/help`, `/status`, `/pause`, and `/resume` are implemented.
 - Every command response uses an outbox row with `PENDING`, `UNKNOWN`, `SENT`,
   or `FAILED` delivery state.
+- Signed `/state/v1/bootstrap` and `/state/v1/health` operations use timestamped,
+  nonce-protected HMAC authentication.
+- A five-minute UTC Cron Trigger can dispatch one fixed GitHub workflow, with a
+  durable D1 deduplication key and bounded failure codes.
 
 `UNKNOWN` is intentional: if a network request may have reached Telegram but
 the response was lost, the Worker does not blindly resend and create a duplicate.
@@ -27,5 +31,7 @@ npm run typecheck
 npm test
 ```
 
-Deployment stays disabled until the D1 database and encrypted secrets are
-created in the deployment phase.
+`PRODUCTION_DISPATCH_ENABLED` defaults to `false`. The production orchestrator
+does not exist yet, so the runtime gate refuses activation even if a variable is
+changed accidentally. See `docs/deployment-readiness.md` before provisioning
+anything.

@@ -4,6 +4,8 @@ export interface WorkerEnv {
   TELEGRAM_ADMIN_USER_ID: string;
   TELEGRAM_WEBHOOK_SECRET: string;
   STATE_API_HMAC_SECRET: string;
+  PRODUCTION_DISPATCH_ENABLED?: string;
+  GITHUB_ACTIONS_TOKEN?: string;
 }
 
 export interface WorkerConfig {
@@ -11,6 +13,8 @@ export interface WorkerConfig {
   telegramAdminUserId: string;
   telegramWebhookSecret: string;
   stateApiHmacSecret: string;
+  productionDispatchEnabled: boolean;
+  githubActionsToken: string | null;
 }
 
 export class ConfigurationError extends Error {
@@ -45,10 +49,27 @@ export function loadConfig(env: WorkerEnv): WorkerConfig {
     throw new ConfigurationError("Webhook and state API secrets must differ");
   }
 
+  const enabledValue = env.PRODUCTION_DISPATCH_ENABLED ?? "false";
+  if (enabledValue !== "true" && enabledValue !== "false") {
+    throw new ConfigurationError("PRODUCTION_DISPATCH_ENABLED must be true or false");
+  }
+  const productionDispatchEnabled = enabledValue === "true";
+  const githubActionsToken = env.GITHUB_ACTIONS_TOKEN ?? null;
+  if (
+    productionDispatchEnabled &&
+    (!githubActionsToken ||
+      githubActionsToken.length < 20 ||
+      githubActionsToken.includes("REPLACE"))
+  ) {
+    throw new ConfigurationError("GITHUB_ACTIONS_TOKEN is required when dispatch is enabled");
+  }
+
   return {
     telegramBotToken: token,
     telegramAdminUserId: adminId,
     telegramWebhookSecret: webhookSecret,
     stateApiHmacSecret: hmacSecret,
+    productionDispatchEnabled,
+    githubActionsToken,
   };
 }

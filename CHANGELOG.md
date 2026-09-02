@@ -2,6 +2,22 @@
 
 All notable project changes are recorded here.
 
+## 0.12.0 — 2026-09-02
+
+- Added a replay-protected HMAC-SHA256 Worker state boundary for bounded
+  bootstrap reads and idempotent completed-health writes.
+- Added a standard-library Python state client with fixed typed paths, HTTPS
+  origin validation, redirect rejection, exact-body signing, and response caps.
+- Added a five-minute UTC Cloudflare scheduled handler with durable D1 dispatch
+  identity and a fixed GitHub repository, workflow, and main-branch target.
+- Added migration 3 for state nonces and immutable workflow-dispatch history.
+- Added independent Cloudflare and GitHub activation flags that default false,
+  plus a hard runtime gate that refuses activation while the end-to-end
+  production orchestrator is missing.
+- Added a least-privilege deployment-readiness guide and deterministic boundary
+  tests. No Cloudflare resource, secret, webhook, workflow schedule, message, or
+  trading capability was deployed or activated.
+
 ## 0.11.0 — 2026-09-02
 
 - Added conservative completed-candle replay for fixed and managed historical

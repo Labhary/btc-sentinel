@@ -29,6 +29,8 @@ what actually happened. Both are needed:
 | `command_audit` | Owner command and delivery result | Append-only |
 | `bot_settings` | Non-secret operational settings | Versioned update |
 | `health_runs` | Job health and stale-data evidence | Append-only |
+| `state_api_nonces` | Short-lived HMAC replay prevention | Insert once; expired cleanup |
+| `workflow_dispatches` | Cron-to-Action dispatch identity and result | Identity immutable |
 
 ## Price representation
 
@@ -83,3 +85,4 @@ pairs explicit. Snapshots cannot be updated or deleted.
 - Each signal has at most one immutable trade activation.
 - A partial unique index allows at most one managed `ACTIVE` BTC signal.
 - Jobs and checkpoints use semantic keys rather than runner-local files.
+- State API nonces and scheduled dispatch instants are claimed atomically.

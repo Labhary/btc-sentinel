@@ -24,6 +24,11 @@ separate trust boundaries. Input from all of them is parsed and validated.
 - Use optimistic row versions for state transitions.
 - Use a separate signing secret from the Telegram webhook secret.
 
+Phase 12 implements this contract for the bounded bootstrap and completed-health
+operations. Query strings, stale timestamps, replayed nonces, unknown payload
+fields, and oversized bodies are rejected. The workflow dispatcher is fixed to
+one repository, workflow, and branch so untrusted input cannot become a URL.
+
 ## Secrets
 
 Source code reads secret values from environment bindings. A wrapper suppresses
@@ -47,4 +52,3 @@ Logs use event names and opaque IDs. They may contain signal IDs, strategy
 versions, timestamps, source names, HTTP status codes, and redacted errors.
 They must not contain tokens, authorization headers, signed URLs, raw webhook
 headers, owner IDs, or full third-party response bodies.
-

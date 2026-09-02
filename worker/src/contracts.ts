@@ -23,6 +23,17 @@ export interface OutboxMessage {
   createdAt: string;
 }
 
+export interface HealthRunInput {
+  runId: string;
+  jobName: string;
+  startedAt: string;
+  finishedAt: string;
+  status: "OK" | "DEGRADED" | "FAILED";
+  dataFresh: boolean;
+  summary: Record<string, unknown>;
+  dedupeKey: string;
+}
+
 export interface BotStore {
   beginUpdate(updateId: number, receivedAt: string, leaseUntil: string): Promise<boolean>;
   finishUpdate(updateId: number, status: "COMPLETED" | "IGNORED", at: string): Promise<void>;
@@ -38,6 +49,19 @@ export interface BotStore {
     command: CommandName,
     occurredAt: string,
     result: CommandAuditResult,
+  ): Promise<void>;
+  claimStateNonce(nonce: string, expiresAt: string, createdAt: string): Promise<boolean>;
+  recordHealthRun(run: HealthRunInput): Promise<boolean>;
+  claimWorkflowDispatch(
+    dispatchKey: string,
+    scheduledAt: string,
+    claimedAt: string,
+  ): Promise<boolean>;
+  finishWorkflowDispatch(
+    dispatchKey: string,
+    status: "SENT" | "FAILED",
+    finishedAt: string,
+    errorCode: string | null,
   ): Promise<void>;
 }
 

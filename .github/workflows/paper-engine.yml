@@ -1,0 +1,51 @@
+name: Paper engine readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      dispatch_key:
+        description: Durable Worker dispatch identity
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: btc-sentinel-paper-engine
+  cancel-in-progress: false
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PAPER_ENGINE_ENABLED: ${{ vars.PAPER_ENGINE_ENABLED || 'false' }}
+    steps:
+      - name: Check out exact main revision
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install project
+        run: python -m pip install -e "."
+
+      - name: Validate dispatch identity
+        env:
+          DISPATCH_KEY: ${{ inputs.dispatch_key }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+
+          value = os.environ.get("DISPATCH_KEY", "")
+          if not re.fullmatch(r"[A-Za-z0-9_.:+-]{1,128}", value):
+              raise SystemExit("Invalid dispatch identity")
+          PY
+
+      - name: Enforce activation boundary
+        run: python scripts/runtime_gate.py

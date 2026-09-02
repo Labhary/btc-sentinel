@@ -34,9 +34,11 @@ add files without activating production schedules.
     walk-forward evaluation, sensitivity, and stability gates. The framework is
     complete; a representative exhaustive historical run is still required
     before any performance claim.
-12. **Free deployment — next**
-    D1 migration, Worker deployment, encrypted secrets, cron-to-workflow
-    dispatch, health.
+12. **Free deployment — in progress, inactive**
+    D1 runtime-boundary migration, signed bootstrap/health API, idempotent
+    cron-to-workflow dispatch, and independent activation gates are implemented.
+    The end-to-end production orchestrator, preview provisioning, encrypted
+    secret setup, webhook registration, and activation remain incomplete.
 13. **Paper observation**
     Run without money, preserve every result, change rules only through a new
     version backed by evidence.

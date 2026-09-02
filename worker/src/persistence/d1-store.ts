@@ -3,6 +3,7 @@ import type {
   CommandAuditResult,
   CommandName,
   DeliveryStatus,
+  HealthRunInput,
   OutboxMessage,
   StatusSummary,
 } from "../contracts";
@@ -197,6 +198,75 @@ export class D1BotStore implements BotStore {
          ) VALUES (?, ?, ?, ?, ?)`,
       )
       .bind(`telegram-command-${updateId}`, updateId, command, occurredAt, result)
+      .run();
+  }
+
+  async claimStateNonce(nonce: string, expiresAt: string, createdAt: string): Promise<boolean> {
+    await this.database
+      .prepare("DELETE FROM state_api_nonces WHERE expires_at < ?")
+      .bind(createdAt)
+      .run();
+    const result = await this.database
+      .prepare(
+        `INSERT OR IGNORE INTO state_api_nonces(nonce, expires_at, created_at)
+         VALUES (?, ?, ?)`,
+      )
+      .bind(nonce, expiresAt, createdAt)
+      .run();
+    return changes(result) === 1;
+  }
+
+  async recordHealthRun(run: HealthRunInput): Promise<boolean> {
+    const result = await this.database
+      .prepare(
+        `INSERT OR IGNORE INTO health_runs(
+           run_id, job_name, started_at, finished_at, status,
+           data_fresh, summary_json, dedupe_key
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        run.runId,
+        run.jobName,
+        run.startedAt,
+        run.finishedAt,
+        run.status,
+        run.dataFresh ? 1 : 0,
+        JSON.stringify(run.summary),
+        run.dedupeKey,
+      )
+      .run();
+    return changes(result) === 1;
+  }
+
+  async claimWorkflowDispatch(
+    dispatchKey: string,
+    scheduledAt: string,
+    claimedAt: string,
+  ): Promise<boolean> {
+    const result = await this.database
+      .prepare(
+        `INSERT OR IGNORE INTO workflow_dispatches(
+           dispatch_key, scheduled_at, claimed_at, status
+         ) VALUES (?, ?, ?, 'CLAIMED')`,
+      )
+      .bind(dispatchKey, scheduledAt, claimedAt)
+      .run();
+    return changes(result) === 1;
+  }
+
+  async finishWorkflowDispatch(
+    dispatchKey: string,
+    status: "SENT" | "FAILED",
+    finishedAt: string,
+    errorCode: string | null,
+  ): Promise<void> {
+    await this.database
+      .prepare(
+        `UPDATE workflow_dispatches
+         SET status = ?, finished_at = ?, error_code = ?
+         WHERE dispatch_key = ? AND status = 'CLAIMED'`,
+      )
+      .bind(status, finishedAt, errorCode, dispatchKey)
       .run();
   }
 }

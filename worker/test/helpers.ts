@@ -4,6 +4,7 @@ import type {
   CommandAuditResult,
   CommandName,
   DeliveryStatus,
+  HealthRunInput,
   OutboxMessage,
   SentTelegramMessage,
   StatusSummary,
@@ -36,6 +37,12 @@ export class MemoryBotStore implements BotStore {
   readonly updates = new Map<number, StoredUpdate>();
   readonly outbox = new Map<string, StoredOutbox>();
   readonly commands: RecordedCommand[] = [];
+  readonly nonces = new Set<string>();
+  readonly healthRuns = new Map<string, HealthRunInput>();
+  readonly dispatches = new Map<
+    string,
+    { scheduledAt: string; status: "CLAIMED" | "SENT" | "FAILED"; errorCode: string | null }
+  >();
   paused = false;
   summary: StatusSummary = {
     pendingSignals: 0,
@@ -137,6 +144,48 @@ export class MemoryBotStore implements BotStore {
     }
   }
 
+  async claimStateNonce(nonce: string, _expiresAt: string, _createdAt: string): Promise<boolean> {
+    if (this.nonces.has(nonce)) {
+      return false;
+    }
+    this.nonces.add(nonce);
+    return true;
+  }
+
+  async recordHealthRun(run: HealthRunInput): Promise<boolean> {
+    if (this.healthRuns.has(run.dedupeKey)) {
+      return false;
+    }
+    this.healthRuns.set(run.dedupeKey, run);
+    this.summary.latestHealthStatus = run.status;
+    this.summary.latestHealthAt = run.finishedAt;
+    return true;
+  }
+
+  async claimWorkflowDispatch(
+    dispatchKey: string,
+    scheduledAt: string,
+    _claimedAt: string,
+  ): Promise<boolean> {
+    if (this.dispatches.has(dispatchKey)) {
+      return false;
+    }
+    this.dispatches.set(dispatchKey, { scheduledAt, status: "CLAIMED", errorCode: null });
+    return true;
+  }
+
+  async finishWorkflowDispatch(
+    dispatchKey: string,
+    status: "SENT" | "FAILED",
+    _finishedAt: string,
+    errorCode: string | null,
+  ): Promise<void> {
+    const item = this.dispatches.get(dispatchKey);
+    if (item?.status === "CLAIMED") {
+      this.dispatches.set(dispatchKey, { ...item, status, errorCode });
+    }
+  }
+
   private findOutbox(outboxId: string): StoredOutbox {
     const item = [...this.outbox.values()].find(
       (candidate) => candidate.message.outboxId === outboxId,
@@ -178,6 +227,8 @@ export const testConfig: WorkerConfig = {
   telegramAdminUserId: "424242",
   telegramWebhookSecret: "webhook_secret_abcdefghijklmnopqrstuvwxyz",
   stateApiHmacSecret: "state_api_secret_abcdefghijklmnopqrstuvwxyz",
+  productionDispatchEnabled: false,
+  githubActionsToken: null,
 };
 
 export function telegramRequest(

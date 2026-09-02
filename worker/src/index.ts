@@ -1,5 +1,7 @@
 import { handleRequest } from "./app";
 import { loadConfig, type WorkerEnv } from "./config";
+import { GitHubWorkflowDispatcher } from "./dispatch/github";
+import { dispatchScheduledWorkflow } from "./dispatch/scheduled";
 import { D1BotStore } from "./persistence/d1-store";
 import { TelegramApiSender } from "./telegram/sender";
 import { systemClock } from "./time";
@@ -26,5 +28,15 @@ export default {
         { status: 503, headers: { "cache-control": "no-store" } },
       );
     }
+  },
+  async scheduled(controller: ScheduledController, env: WorkerEnv, context: ExecutionContext) {
+    const config = loadConfig(env);
+    const store = new D1BotStore(env.DB);
+    const dispatcher = config.githubActionsToken
+      ? new GitHubWorkflowDispatcher(config.githubActionsToken)
+      : null;
+    context.waitUntil(
+      dispatchScheduledWorkflow(controller.scheduledTime, config, store, dispatcher, systemClock),
+    );
   },
 };
