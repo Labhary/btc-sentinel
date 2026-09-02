@@ -2,6 +2,22 @@
 
 All notable project changes are recorded here.
 
+## 0.8.0 — 2026-09-02
+
+- Added immutable, versioned Phase 8 decisions from completed Spot BTCUSDT
+  one-minute candles, with changes effective only after the evidence candle.
+- Added a default 1.5R managed-stop rule using a cost-adjusted break-even price;
+  the fixed comparison track keeps its original stop and target.
+- Added realized-plus-remaining R accounting for experimental partial exits,
+  while leaving partials disabled by default because taking half before TP1
+  would lower a successful managed outcome below the original 2R objective.
+- Integrated track-specific stops into lifecycle replay, including conservative
+  same-candle ordering and independent fixed/managed outcomes.
+- Added stable decision deduplication and monotonic checkpoints for restart-safe
+  replay after a decision commit.
+- Added deterministic Phase 8 tests. No production schedule, signal delivery,
+  deployment, private API access, or trading capability was enabled.
+
 ## 0.7.0 — 2026-09-02
 
 - Added deterministic replay of completed Binance Spot one-minute candles for

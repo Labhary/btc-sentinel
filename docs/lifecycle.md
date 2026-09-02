@@ -32,9 +32,10 @@ it is the lower edge. A gap-stop exception does not apply on the activation
 candle because the trade did not exist at that candle's open.
 
 Phase 7 treats TP1 as the terminal baseline target. Additional planned targets
-remain immutable reference terms for Phase 8 managed-position rules. Fixed and
-managed tracks start with identical terms, so later management can be compared
-against an untouched baseline without hindsight.
+remain immutable reference terms. Phase 8 applies its separate
+[managed-position policy](position-management.md) only after a lifecycle candle
+has been resolved. Fixed and managed tracks start with identical terms, so
+management can be compared against an untouched baseline without hindsight.
 
 ## Result accounting
 

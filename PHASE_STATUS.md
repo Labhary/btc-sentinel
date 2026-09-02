@@ -90,15 +90,27 @@ Last updated: 2026-09-02
   restart-safe replay.
 - Parallel fixed and managed tracks activated and resolved independently.
 
-## Next — Phase 8
+## Completed — Phase 8
 
-- Versioned managed-position actions using information available at the time.
-- Partial-close, stop-move, and break-even accounting without hindsight.
-- Fixed baseline remains unchanged for honest comparison.
+- One immutable, versioned managed-position decision per completed candle.
+- Decisions become effective only after the evidence candle closes, preventing
+  same-candle hindsight.
+- Default 1.5R protection moves only the managed stop to cost-adjusted
+  break-even; fixed terms never change.
+- Correct realized-plus-remaining R accounting for explicitly enabled partials,
+  with partial exits disabled in the default policy because they reduce TP1 R.
+- Stable decision keys and monotonic checkpoints recover safely after crashes.
+
+## Next — Phase 9
+
+- Recalculate statistics after each managed close.
+- Update comparisons when the fixed virtual track resolves later.
+- Keep wins, losses, break-even results, and unresolved tracks separate.
 
 ## Not implemented yet
 
 Deployment is not active. Phase 7 provides a local lifecycle replay library;
-no production monitor or schedule invokes it. Telegram signal delivery,
-position management, reports, statistics, and backtesting remain disabled until
-their phases are implemented and tested. No external write is enabled.
+no production monitor or schedule invokes it. Phase 8 management is likewise a
+library, not an active service. Telegram signal delivery, reports, statistics,
+and backtesting remain disabled until their phases are implemented and tested.
+No external write is enabled.

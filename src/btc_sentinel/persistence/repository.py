@@ -15,6 +15,7 @@ from btc_sentinel.domain.enums import (
 )
 from btc_sentinel.domain.models import Signal
 from btc_sentinel.lifecycle.models import LifecycleSignal
+from btc_sentinel.management.models import ManagementDecision
 
 
 class Repository(Protocol):
@@ -60,3 +61,7 @@ class Repository(Protocol):
     def advance_checkpoint(
         self, checkpoint_key: str, processed_at: datetime, payload: dict[str, Any]
     ) -> None: ...
+
+    def apply_management_decision(self, decision: ManagementDecision) -> None: ...
+
+    def management_decision_exists(self, dedupe_key: str) -> bool: ...

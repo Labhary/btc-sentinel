@@ -29,7 +29,8 @@ from btc_sentinel.errors import (
     RecordNotFoundError,
     SecurityError,
 )
-from btc_sentinel.lifecycle.models import LifecycleSignal
+from btc_sentinel.lifecycle.models import LifecycleSignal, TrackState
+from btc_sentinel.management.models import ManagementDecision
 from btc_sentinel.time_utils import ensure_utc, iso_utc
 
 _CLOSE_EVENTS = {
@@ -214,7 +215,8 @@ class SqliteRepository:
         ).fetchall()
         tracks = self._connection.execute(
             """
-            SELECT variant FROM trade_tracks
+            SELECT variant, current_stop, remaining_fraction, realized_r
+            FROM trade_tracks
             WHERE signal_id = ? AND track_status = 'ACTIVE'
             ORDER BY variant
             """,
@@ -238,7 +240,15 @@ class SqliteRepository:
             recommended_risk_percent=Decimal(row["recommended_risk_percent"]),
             fill_price=None if row["fill_price"] is None else Decimal(row["fill_price"]),
             activated_at=(None if row["activated_at"] is None else parse_time(row["activated_at"])),
-            active_variants=tuple(OutcomeVariant(item["variant"]) for item in tracks),
+            active_tracks=tuple(
+                TrackState(
+                    variant=OutcomeVariant(item["variant"]),
+                    current_stop=Decimal(item["current_stop"]),
+                    remaining_fraction=Decimal(item["remaining_fraction"]),
+                    realized_r=Decimal(item["realized_r"]),
+                )
+                for item in tracks
+            ),
         )
 
     def _signal_row(self, connection: sqlite3.Connection, signal_id: str) -> sqlite3.Row:
@@ -572,6 +582,103 @@ class SqliteRepository:
                 """,
                 (checkpoint_key, timestamp, _json(payload), timestamp),
             )
+
+    def apply_management_decision(self, decision: ManagementDecision) -> None:
+        try:
+            with self._transaction() as connection:
+                track = self._require_active_track(
+                    connection, decision.signal_id, OutcomeVariant.MANAGED
+                )
+                stop = (
+                    track["current_stop"]
+                    if decision.updated_stop is None
+                    else _decimal_text(decision.updated_stop, "updated_stop")
+                )
+                remaining = (
+                    track["remaining_fraction"]
+                    if decision.remaining_fraction_after is None
+                    else _decimal_text(
+                        decision.remaining_fraction_after, "remaining_fraction_after"
+                    )
+                )
+                realized = (
+                    track["realized_r"]
+                    if decision.realized_r_after is None
+                    else _decimal_text(decision.realized_r_after, "realized_r_after")
+                )
+                if decision.changes_managed_result:
+                    updated = connection.execute(
+                        """
+                        UPDATE trade_tracks
+                        SET current_stop = ?, remaining_fraction = ?, realized_r = ?,
+                            updated_at = ?, row_version = row_version + 1
+                        WHERE signal_id = ? AND variant = 'MANAGED'
+                            AND track_status = 'ACTIVE' AND row_version = ?
+                        """,
+                        (
+                            stop,
+                            remaining,
+                            realized,
+                            iso_utc(decision.decided_at),
+                            decision.signal_id,
+                            track["row_version"],
+                        ),
+                    )
+                    if updated.rowcount != 1:
+                        raise ConcurrencyError("Managed track changed during decision")
+
+                connection.execute(
+                    """
+                    INSERT INTO management_decisions(
+                        decision_id, signal_id, decided_at, action, current_price,
+                        unrealized_percent, unrealized_r, reason, updated_stop,
+                        updated_target, changes_managed_result, strategy_version,
+                        evidence_json, dedupe_key
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(uuid4()),
+                        decision.signal_id,
+                        iso_utc(decision.decided_at),
+                        decision.action.value,
+                        _decimal_text(decision.current_price, "current_price"),
+                        _decimal_text(decision.unrealized_percent, "unrealized_percent"),
+                        _decimal_text(decision.unrealized_r, "unrealized_r"),
+                        decision.reason,
+                        None
+                        if decision.updated_stop is None
+                        else _decimal_text(decision.updated_stop, "updated_stop"),
+                        int(decision.changes_managed_result),
+                        decision.strategy_version,
+                        _json(decision.evidence),
+                        decision.dedupe_key,
+                    ),
+                )
+                self._insert_event(
+                    connection,
+                    decision.signal_id,
+                    OutcomeVariant.MANAGED,
+                    TradeEventType.MANAGEMENT_DECISION,
+                    decision.decided_at,
+                    decision.current_price,
+                    {
+                        "action": decision.action.value,
+                        "changes_managed_result": decision.changes_managed_result,
+                        "strategy_version": decision.strategy_version,
+                    },
+                    f"{decision.dedupe_key}:event",
+                )
+        except sqlite3.IntegrityError as exc:
+            raise DuplicateRecordError(
+                f"Management decision {decision.dedupe_key} already exists"
+            ) from exc
+
+    def management_decision_exists(self, dedupe_key: str) -> bool:
+        row = self._connection.execute(
+            "SELECT 1 FROM management_decisions WHERE dedupe_key = ?",
+            (dedupe_key,),
+        ).fetchone()
+        return row is not None
 
     def _insert_event(
         self,
