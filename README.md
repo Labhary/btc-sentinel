@@ -4,7 +4,7 @@ BTC Sentinel is a BTC/USDT-only market-analysis and paper-trading alert bot. It
 is being built as a deterministic, auditable system: market levels come from
 market data and rules, not from a language model.
 
-> **Current status:** Phases 1–10 are implemented and tested. The project now has
+> **Current status:** Phases 1–11 are implemented and tested. The project now has
 > an owner-only Telegram command foundation, a strict Binance public-data engine,
 > deterministic multi-timeframe analysis, and a fail-closed news/macro risk
 > filter. Phase 7 can persist and conservatively reconstruct paper-signal
@@ -12,6 +12,9 @@ market data and rules, not from a language model.
 > paper-position decisions while preserving an unchanged fixed comparison.
 > Phase 9 creates strict append-only statistics after every track close, and
 > Phase 10 prepares read-only paper reports with sample sizes and uncertainty.
+> Phase 11 adds conservative fixed/managed replay and purged walk-forward
+> evaluation. No representative historical dataset has been evaluated, so the
+> strict win-rate objective above 60% at 2R or better remains unproven.
 > Automated monitoring, report delivery, signal delivery, and deployment remain
 > disabled. This must not yet be treated as a live trading tool.
 
@@ -48,7 +51,8 @@ GitHub Actions a real-time execution platform.
 See [architecture.md](docs/architecture.md), [data-sources.md](docs/data-sources.md),
 [news-risk.md](docs/news-risk.md), [signals.md](docs/signals.md),
 [lifecycle.md](docs/lifecycle.md), [position-management.md](docs/position-management.md),
-[statistics.md](docs/statistics.md), [reports.md](docs/reports.md), and
+[statistics.md](docs/statistics.md), [reports.md](docs/reports.md),
+[backtesting.md](docs/backtesting.md), and
 [requirements-review.md](docs/requirements-review.md) for the trade-offs and
 hard limits.
 
