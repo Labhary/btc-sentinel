@@ -31,6 +31,7 @@ from btc_sentinel.errors import (
 )
 from btc_sentinel.lifecycle.models import LifecycleSignal, TrackState
 from btc_sentinel.management.models import ManagementDecision
+from btc_sentinel.statistics import OutcomeSample, calculate_statistics
 from btc_sentinel.time_utils import ensure_utc, iso_utc
 
 _CLOSE_EVENTS = {
@@ -516,6 +517,12 @@ class SqliteRepository:
                     )
                     if status_update.rowcount != 1:
                         raise ConcurrencyError("Signal changed during managed close")
+                self._insert_statistics_snapshot(
+                    connection,
+                    triggering_signal_id=signal_id,
+                    triggering_variant=variant,
+                    calculated_at=occurred_at,
+                )
         except sqlite3.IntegrityError as exc:
             raise DuplicateRecordError(
                 f"Track {signal_id}/{variant.value} already has this close or outcome"
@@ -679,6 +686,78 @@ class SqliteRepository:
             (dedupe_key,),
         ).fetchone()
         return row is not None
+
+    def _insert_statistics_snapshot(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        triggering_signal_id: str,
+        triggering_variant: OutcomeVariant,
+        calculated_at: datetime,
+    ) -> None:
+        rows = connection.execute(
+            """
+            SELECT o.signal_id, o.variant, o.result, o.result_r, o.closed_at,
+                   s.strategy_version
+            FROM outcomes AS o
+            JOIN signals AS s ON s.signal_id = o.signal_id
+            ORDER BY o.closed_at, o.outcome_id
+            """
+        ).fetchall()
+        samples = tuple(
+            OutcomeSample(
+                signal_id=row["signal_id"],
+                variant=OutcomeVariant(row["variant"]),
+                result=OutcomeResult(row["result"]),
+                result_r=Decimal(row["result_r"]),
+                closed_at=datetime.fromisoformat(row["closed_at"].replace("Z", "+00:00")),
+                strategy_version=row["strategy_version"],
+            )
+            for row in rows
+        )
+        report = calculate_statistics(samples, calculated_at)
+        dedupe_key = (
+            f"statistics:{triggering_signal_id}:{triggering_variant.value}:statistics-v0.9.0"
+        )
+        connection.execute(
+            """
+            INSERT INTO statistics_snapshots(
+                snapshot_id, triggering_signal_id, triggering_variant,
+                calculated_at, strategy_version, payload_json, dedupe_key
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(uuid4()),
+                triggering_signal_id,
+                triggering_variant.value,
+                iso_utc(calculated_at),
+                "statistics-v0.9.0",
+                _json(report.as_payload()),
+                dedupe_key,
+            ),
+        )
+
+    def get_latest_statistics_snapshot(self) -> dict[str, Any] | None:
+        row = self._connection.execute(
+            """
+            SELECT snapshot_id, triggering_signal_id, triggering_variant,
+                   calculated_at, strategy_version, payload_json, dedupe_key
+            FROM statistics_snapshots
+            ORDER BY calculated_at DESC, rowid DESC
+            LIMIT 1
+            """
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "snapshot_id": row["snapshot_id"],
+            "triggering_signal_id": row["triggering_signal_id"],
+            "triggering_variant": row["triggering_variant"],
+            "calculated_at": row["calculated_at"],
+            "strategy_version": row["strategy_version"],
+            "payload": json.loads(row["payload_json"]),
+            "dedupe_key": row["dedupe_key"],
+        }
 
     def _insert_event(
         self,

@@ -101,16 +101,27 @@ Last updated: 2026-09-02
   with partial exits disabled in the default policy because they reduce TP1 R.
 - Stable decision keys and monotonic checkpoints recover safely after crashes.
 
-## Next — Phase 9
+## Completed — Phase 9
 
-- Recalculate statistics after each managed close.
-- Update comparisons when the fixed virtual track resolves later.
-- Keep wins, losses, break-even results, and unresolved tracks separate.
+- Atomic append-only statistics snapshot after every fixed or managed close.
+- Strict and decisive win rates, positive-return rate, 95% Wilson uncertainty,
+  net/average/median R, profit factor, and maximum drawdown in R.
+- Fixed and managed metrics calculated separately with completed-pair deltas.
+- Unresolved fixed and managed comparisons remain visible instead of receiving
+  fabricated outcomes.
+- Contradictory outcome categories and R signs roll back the close transaction.
+
+## Next — Phase 10
+
+- Daily, weekly, monthly, active, pending, and news-risk reports.
+- Render strict statistics with sample size and uncertainty labels.
+- Prepare Telegram payloads without enabling production delivery.
 
 ## Not implemented yet
 
 Deployment is not active. Phase 7 provides a local lifecycle replay library;
 no production monitor or schedule invokes it. Phase 8 management is likewise a
-library, not an active service. Telegram signal delivery, reports, statistics,
-and backtesting remain disabled until their phases are implemented and tested.
-No external write is enabled.
+library, not an active service. Phase 9 statistics are durable but no report or
+production delivery consumes them yet. Telegram signal delivery, reports, and
+backtesting remain disabled until their phases are implemented and tested. No
+external write is enabled.

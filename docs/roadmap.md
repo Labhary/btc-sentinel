@@ -24,10 +24,10 @@ add files without activating production schedules.
 8. **Position management — complete**
    Strict versioned decisions, next-candle effect, optional partial accounting,
    fixed baseline preserved.
-9. **Statistics — next**
+9. **Statistics — complete**
    Recalculate on each managed close and update when a fixed virtual track later
    resolves.
-10. **Reports**
+10. **Reports — next**
     Monthly, weekly, daily, news risk, active/pending status.
 11. **Backtesting**
     Regime coverage, costs, walk-forward evaluation, sensitivity, stability.

@@ -66,6 +66,12 @@ The fixed track is never updated by management. Each decision has a stable
 per-candle strategy key; its checkpoint advances separately so a crash cannot
 apply a different decision to the same candle.
 
+Phase 9 inserts a `statistics_snapshots` row inside the same transaction that
+closes a track. If outcome semantics or snapshot persistence fails, the track
+close rolls back too. Every snapshot is a complete recalculation over immutable
+outcomes, identifies the triggering track, and keeps unresolved fixed/managed
+pairs explicit. Snapshots cannot be updated or deleted.
+
 ## Idempotency
 
 - Each signal ID is unique.

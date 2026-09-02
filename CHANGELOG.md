@@ -2,6 +2,24 @@
 
 All notable project changes are recorded here.
 
+## 0.9.0 — 2026-09-02
+
+- Added an atomic append-only Phase 9 statistics snapshot after every fixed or
+  managed track close.
+- Added separate fixed and managed counts for wins, losses, break-even results,
+  early exits, and positive, negative, or flat R outcomes.
+- Added strict win rate over every resolved outcome, separately labeled
+  decisive win rate, positive-return rate, and a 95% Wilson interval so small
+  samples cannot masquerade as reliable performance.
+- Added net, average, and median R, profit factor, and chronological maximum
+  drawdown measured in R.
+- Added completed fixed-versus-managed pair deltas and explicit unresolved fixed
+  or managed counts without fabricated outcomes.
+- Rejected contradictory outcome labels and R signs atomically, rolling back
+  the close and snapshot together.
+- Added deterministic Phase 9 tests. No reports, production schedule, signal
+  delivery, deployment, private API access, or trading capability was enabled.
+
 ## 0.8.0 — 2026-09-02
 
 - Added immutable, versioned Phase 8 decisions from completed Spot BTCUSDT
