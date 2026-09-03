@@ -2,6 +2,19 @@
 
 All notable project changes are recorded here.
 
+## 0.12.2 — 2026-09-03
+
+- Added the typed Python repository adapter and fixed, allowlisted signed Worker
+  repository operations for signal, lifecycle, management, statistics, report,
+  and checkpoint state.
+- Added migration 4 with immutable idempotency receipts and transactional
+  single-row mutation assertions.
+- Made signal terms, targets, creation audit event, and owner notification
+  outbox persistence one atomic D1 batch, with bounded pending-outbox recovery.
+- Added cursor-bounded outcome reads and adversarial request-shape tests.
+- Kept both activation gates disabled; no Cloudflare resource, secret, webhook,
+  message, deployment, exchange credential, or trading action was enabled.
+
 ## 0.12.1 — 2026-09-03
 
 - Added the deterministic paper-engine orchestration core with completed-candle

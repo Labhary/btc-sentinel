@@ -150,6 +150,34 @@ describe("signed state API", () => {
     expect(sender.messages).toEqual([{ chatId: "424242", text: "Daily paper report" }]);
   });
 
+  it("drains bounded pending outbox rows through the authenticated owner sender", async () => {
+    const store = new MemoryBotStore();
+    const sender = new FakeTelegramSender();
+    await store.prepareOutbox({
+      outboxId: "runtime-notify:signal:BTC-20260802-001:created",
+      dedupeKey: "notify:signal:BTC-20260802-001:created",
+      messageType: "SIGNAL",
+      chatId: "424242",
+      text: "paper signal",
+      createdAt: "2026-08-02T12:34:00.000Z",
+    });
+    const response = await handleRequest(
+      await signedRequest("/state/v1/outbox/drain", "POST", null, "nonce-outbox-drain-01"),
+      { ...dependencies(store), sender },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      drained: 1,
+      results: [
+        {
+          outbox_id: "runtime-notify:signal:BTC-20260802-001:created",
+          status: "SENT",
+        },
+      ],
+    });
+    expect(sender.messages).toEqual([{ chatId: "424242", text: "paper signal" }]);
+  });
+
   it("rejects unknown notification types and future notification times", async () => {
     const store = new MemoryBotStore();
     for (const [index, overrides] of [
@@ -175,6 +203,45 @@ describe("signed state API", () => {
       );
       expect(response.status).toBe(400);
     }
+  });
+
+  it("accepts only exact allowlisted repository command shapes", async () => {
+    const store = new MemoryBotStore();
+    const accepted = await handleRequest(
+      await signedRequest(
+        "/state/v1/repository",
+        "POST",
+        { operation: "get_signal_status", arguments: { signal_id: "BTC-20260802-001" } },
+        "nonce-repository-good-01",
+      ),
+      dependencies(store),
+    );
+    expect(accepted.status).toBe(200);
+    expect(store.repositoryCommands).toEqual([
+      { operation: "get_signal_status", arguments: { signal_id: "BTC-20260802-001" } },
+    ]);
+
+    for (const [index, payload] of [
+      { operation: "execute_sql", arguments: {} },
+      {
+        operation: "get_signal_status",
+        arguments: { signal_id: "BTC-20260802-001", table: "signals" },
+      },
+      { operation: "get_signal_status", arguments: {} },
+      { operation: "get_signal_status", arguments: { signal_id: { nested: { too: [] } } } },
+    ].entries()) {
+      const response = await handleRequest(
+        await signedRequest(
+          "/state/v1/repository",
+          "POST",
+          payload,
+          `nonce-repository-bad-${index}`,
+        ),
+        dependencies(store),
+      );
+      expect(response.status).toBe(400);
+    }
+    expect(store.repositoryCommands).toHaveLength(1);
   });
 
   it("rejects unknown fields and oversized bodies", async () => {

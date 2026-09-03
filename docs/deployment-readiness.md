@@ -3,9 +3,10 @@
 Phase 12 is **prepared but not activated**. This repository now contains the
 Cloudflare/D1 boundary, five-minute dispatch plumbing, signed health API,
 deterministic orchestration core, typed runtime bootstrap, durable notification
-enqueue, and a GitHub Actions workflow scaffold. It deliberately refuses to run
-a production paper engine because the typed D1 repository mutation adapter and
-atomic signal/outbox commit are not implemented.
+enqueue, typed D1 repository mutations, atomic signal/outbox persistence,
+bounded pending-outbox recovery, and a GitHub Actions workflow scaffold. It
+deliberately refuses to run a production paper engine until executable job
+assembly and the remaining validation and provisioning steps are complete.
 
 Deploying the current branch would therefore be premature. A green CI run
 proves configuration and boundary behavior; it does not prove a running bot.
@@ -18,11 +19,11 @@ Two independent values default to `false`:
   Cron Trigger is a no-op while it is false.
 - `PAPER_ENGINE_ENABLED` is a GitHub Actions repository variable. The workflow
   remains a readiness-only no-op while it is false and hard-fails if someone
-  changes it to true before the durable repository adapter exists.
+  changes it to true before the full runtime is approved.
 
-The hard-coded runtime gate may be replaced only after the orchestrator has an
-integrated and tested typed D1 repository adapter. Merely changing variables
-cannot bypass it.
+The hard-coded runtime gate may be replaced only after executable job assembly,
+representative backtest validation, preview checks, and an explicit activation
+review. Merely changing variables cannot bypass it.
 
 ## Implemented boundary
 
@@ -32,8 +33,8 @@ cannot bypass it.
 - Workflow dispatch is fixed to `Labhary/btc-sentinel`, `paper-engine.yml`, and
   `main`; callers cannot redirect it to another host, repository, workflow, or
   ref.
-- The state API accepts only `/state/v1/bootstrap`, `/state/v1/notifications`,
-  and `/state/v1/health`. Bootstrap returns bounded monitor/history state;
+- The state API accepts only fixed typed bootstrap, notification, outbox-drain,
+  health, and repository operations. Bootstrap returns bounded monitor/history state;
   notifications accept four fixed paper-message types and inject the configured
   owner identity inside the Worker. HMAC-SHA256 covers method, exact path,
   timestamp, nonce, and raw-body SHA-256.
@@ -64,14 +65,14 @@ workflow. No Binance key exists or is required.
 
 These steps are intentionally **not performed by this pull request**:
 
-1. Implement and test the typed D1 repository adapter used by the orchestration
-   core, including an atomic idempotent signal-plus-outbox commit.
+1. Assemble the executable GitHub Actions paper-engine job around the typed
+   repository, collectors, orchestrator, health bridge, and strict configuration.
 2. Run a representative exhaustive historical backtest. Treat a failed or
    inconclusive result as a stop condition, not as permission to tune the same
    test window.
 3. Create a D1 database and replace the placeholder database ID in a private
    `worker/wrangler.toml` file.
-4. Apply migrations 1–3 to a preview D1 database and verify replayability.
+4. Apply migrations 1–4 to a preview D1 database and verify replayability.
 5. Add encrypted secrets through Wrangler/GitHub settings and deploy a preview
    with dispatch still disabled.
 6. Verify `/health`, signed bootstrap/health writes, webhook ownership checks,

@@ -5,10 +5,12 @@ import type {
   DeliveryStatus,
   HealthRunInput,
   OutboxMessage,
+  RepositoryCommand,
   StatusSummary,
   RuntimeBootstrapState,
   SystemNotificationInput,
 } from "../contracts";
+import { executeRuntimeRepository } from "./runtime-repository";
 
 function changes(result: D1Result<unknown>): number {
   const meta = result.meta as { changes?: number };
@@ -177,6 +179,33 @@ export class D1BotStore implements BotStore {
     return row.delivery_status;
   }
 
+  async listPendingOutbox(limit: number, availableAt: string): Promise<OutboxMessage[]> {
+    const boundedLimit = Math.max(1, Math.min(Math.trunc(limit), 25));
+    const rows = await this.database
+      .prepare(
+        `SELECT outbox_id, dedupe_key, message_type, payload_json, created_at
+         FROM outbox
+         WHERE delivery_status = 'PENDING' AND available_at <= ?
+         ORDER BY created_at, outbox_id LIMIT ?`,
+      )
+      .bind(availableAt, boundedLimit)
+      .all<Record<string, unknown>>();
+    return rows.results.map((row) => {
+      const payload = JSON.parse(String(row.payload_json)) as Record<string, unknown>;
+      if (typeof payload.chat_id !== "string" || typeof payload.text !== "string") {
+        throw new Error("Invalid pending outbox payload");
+      }
+      return {
+        outboxId: String(row.outbox_id),
+        dedupeKey: String(row.dedupe_key),
+        messageType: String(row.message_type),
+        chatId: payload.chat_id,
+        text: payload.text,
+        createdAt: String(row.created_at),
+      };
+    });
+  }
+
   async markOutboxUnknown(outboxId: string, at: string): Promise<void> {
     await this.database
       .prepare(
@@ -286,6 +315,13 @@ export class D1BotStore implements BotStore {
       )
       .run();
     return changes(result) === 1;
+  }
+
+  async executeRepositoryCommand(
+    command: RepositoryCommand,
+    ownerChatId: string,
+  ): Promise<unknown> {
+    return executeRuntimeRepository(this.database, command, ownerChatId);
   }
 
   async claimWorkflowDispatch(

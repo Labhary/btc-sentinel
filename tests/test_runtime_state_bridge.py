@@ -40,6 +40,7 @@ class StateApiRuntimeBridgeTests(TestCase):
     def test_load_maps_only_bounded_runtime_state(self) -> None:
         adapter = QueueAdapter(
             [
+                (200, {"drained": 0, "results": []}),
                 (
                     200,
                     {
@@ -52,13 +53,14 @@ class StateApiRuntimeBridgeTests(TestCase):
                         "last_signal_at": "2026-09-02T23:00:00Z",
                         "active_managed_signal": True,
                     },
-                )
+                ),
             ]
         )
         state = self.bridge(adapter).load()
         self.assertEqual(state.monitored_signal_ids, ("BTC-20260902-001",))
         self.assertTrue(state.signal_history.active_managed_signal)
         self.assertEqual(state.signal_history.last_signal_at.hour, 23)
+        self.assertTrue(adapter.calls[0][0].endswith("/state/v1/outbox/drain"))
 
     def test_notification_and_health_use_separate_typed_paths(self) -> None:
         adapter = QueueAdapter(

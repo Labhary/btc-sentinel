@@ -14,8 +14,10 @@ calculate indicators or generate signals.
 - `/start`, `/help`, `/status`, `/pause`, and `/resume` are implemented.
 - Every command response uses an outbox row with `PENDING`, `UNKNOWN`, `SENT`,
   or `FAILED` delivery state.
-- Signed `/state/v1/bootstrap` and `/state/v1/health` operations use timestamped,
-  nonce-protected HMAC authentication.
+- Signed bootstrap, health, notification, bounded outbox recovery, and typed
+  repository operations use timestamped, nonce-protected HMAC authentication.
+- Signal creation commits its immutable terms, targets, audit event, and owner
+  notification outbox row in one D1 batch.
 - A five-minute UTC Cron Trigger can dispatch one fixed GitHub workflow, with a
   durable D1 deduplication key and bounded failure codes.
 
@@ -31,7 +33,7 @@ npm run typecheck
 npm test
 ```
 
-`PRODUCTION_DISPATCH_ENABLED` defaults to `false`. The production orchestrator
-does not exist yet, so the runtime gate refuses activation even if a variable is
-changed accidentally. See `docs/deployment-readiness.md` before provisioning
-anything.
+`PRODUCTION_DISPATCH_ENABLED` defaults to `false`. Executable job assembly and
+deployment validation are not complete, so the runtime gate refuses activation
+even if a variable is changed accidentally. See `docs/deployment-readiness.md`
+before provisioning anything.
