@@ -34,12 +34,27 @@ export interface HealthRunInput {
   dedupeKey: string;
 }
 
+export interface RuntimeBootstrapState {
+  monitoredSignalIds: string[];
+  lastSignalAt: string | null;
+  activeManagedSignal: boolean;
+}
+
+export interface SystemNotificationInput {
+  messageType: "SIGNAL" | "LIFECYCLE" | "MANAGEMENT" | "REPORT";
+  text: string;
+  dedupeKey: string;
+  signalId: string | null;
+  createdAt: string;
+}
+
 export interface BotStore {
   beginUpdate(updateId: number, receivedAt: string, leaseUntil: string): Promise<boolean>;
   finishUpdate(updateId: number, status: "COMPLETED" | "IGNORED", at: string): Promise<void>;
   getSignalGenerationPaused(): Promise<boolean>;
   setSignalGenerationPaused(paused: boolean, at: string): Promise<void>;
   getStatusSummary(): Promise<StatusSummary>;
+  getRuntimeBootstrapState(): Promise<RuntimeBootstrapState>;
   prepareOutbox(message: OutboxMessage): Promise<DeliveryStatus>;
   markOutboxUnknown(outboxId: string, at: string): Promise<void>;
   markOutboxSent(outboxId: string, telegramMessageId: string, at: string): Promise<void>;
@@ -52,6 +67,7 @@ export interface BotStore {
   ): Promise<void>;
   claimStateNonce(nonce: string, expiresAt: string, createdAt: string): Promise<boolean>;
   recordHealthRun(run: HealthRunInput): Promise<boolean>;
+  enqueueSystemNotification(message: SystemNotificationInput, chatId: string): Promise<boolean>;
   claimWorkflowDispatch(
     dispatchKey: string,
     scheduledAt: string,

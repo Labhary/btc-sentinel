@@ -1,9 +1,11 @@
 # Phase 12 deployment readiness
 
 Phase 12 is **prepared but not activated**. This repository now contains the
-Cloudflare/D1 boundary, five-minute dispatch plumbing, signed health API, and a
-GitHub Actions workflow scaffold. It deliberately refuses to run a production
-paper engine because the end-to-end orchestration layer is not implemented.
+Cloudflare/D1 boundary, five-minute dispatch plumbing, signed health API,
+deterministic orchestration core, typed runtime bootstrap, durable notification
+enqueue, and a GitHub Actions workflow scaffold. It deliberately refuses to run
+a production paper engine because the typed D1 repository mutation adapter and
+atomic signal/outbox commit are not implemented.
 
 Deploying the current branch would therefore be premature. A green CI run
 proves configuration and boundary behavior; it does not prove a running bot.
@@ -16,10 +18,11 @@ Two independent values default to `false`:
   Cron Trigger is a no-op while it is false.
 - `PAPER_ENGINE_ENABLED` is a GitHub Actions repository variable. The workflow
   remains a readiness-only no-op while it is false and hard-fails if someone
-  changes it to true before the production orchestrator exists.
+  changes it to true before the durable repository adapter exists.
 
-The hard-coded runtime gate must be replaced by an integrated and tested
-orchestrator in a reviewed change. Merely changing variables cannot bypass it.
+The hard-coded runtime gate may be replaced only after the orchestrator has an
+integrated and tested typed D1 repository adapter. Merely changing variables
+cannot bypass it.
 
 ## Implemented boundary
 
@@ -29,9 +32,11 @@ orchestrator in a reviewed change. Merely changing variables cannot bypass it.
 - Workflow dispatch is fixed to `Labhary/btc-sentinel`, `paper-engine.yml`, and
   `main`; callers cannot redirect it to another host, repository, workflow, or
   ref.
-- The state API accepts only `/state/v1/bootstrap` and
-  `/state/v1/health`. HMAC-SHA256 covers method, exact path, timestamp, nonce,
-  and raw-body SHA-256.
+- The state API accepts only `/state/v1/bootstrap`, `/state/v1/notifications`,
+  and `/state/v1/health`. Bootstrap returns bounded monitor/history state;
+  notifications accept four fixed paper-message types and inject the configured
+  owner identity inside the Worker. HMAC-SHA256 covers method, exact path,
+  timestamp, nonce, and raw-body SHA-256.
 - Requests outside a five-minute clock window, reused nonces, query strings,
   oversized bodies, unknown fields, and invalid health records fail closed.
 - The Python client rejects redirects, non-HTTPS origins, oversized or malformed
@@ -59,9 +64,8 @@ workflow. No Binance key exists or is required.
 
 These steps are intentionally **not performed by this pull request**:
 
-1. Implement and test the production orchestrator that connects collection,
-   analysis, news gating, signal persistence, lifecycle replay, statistics,
-   reports, and the outbox.
+1. Implement and test the typed D1 repository adapter used by the orchestration
+   core, including an atomic idempotent signal-plus-outbox commit.
 2. Run a representative exhaustive historical backtest. Treat a failed or
    inconclusive result as a stop condition, not as permission to tune the same
    test window.

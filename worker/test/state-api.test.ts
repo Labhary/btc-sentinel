@@ -55,6 +55,9 @@ describe("signed state API", () => {
       signal_generation_paused: true,
       latest_health_status: null,
       latest_health_at: null,
+      monitored_signal_ids: [],
+      last_signal_at: null,
+      active_managed_signal: false,
     });
   });
 
@@ -119,6 +122,59 @@ describe("signed state API", () => {
     expect(duplicate.status).toBe(200);
     expect(await duplicate.json()).toEqual({ accepted: true, duplicate: true });
     expect(store.healthRuns).toHaveLength(1);
+  });
+
+  it("queues a typed owner notification exactly once", async () => {
+    const store = new MemoryBotStore();
+    const sender = new FakeTelegramSender();
+    const deps = { ...dependencies(store), sender };
+    const payload = {
+      message_type: "REPORT",
+      text: "Daily paper report",
+      dedupe_key: "report:daily:2026-08-02:v0.10.0",
+      signal_id: null,
+      created_at: "2026-08-02T12:34:00.000Z",
+    };
+    const first = await handleRequest(
+      await signedRequest("/state/v1/notifications", "POST", payload, "nonce-notification-001"),
+      deps,
+    );
+    const duplicate = await handleRequest(
+      await signedRequest("/state/v1/notifications", "POST", payload, "nonce-notification-002"),
+      deps,
+    );
+    expect(first.status).toBe(201);
+    expect(duplicate.status).toBe(200);
+    expect(store.systemNotifications.size).toBe(1);
+    expect(store.systemNotifications.values().next().value?.chatId).toBe("424242");
+    expect(sender.messages).toEqual([{ chatId: "424242", text: "Daily paper report" }]);
+  });
+
+  it("rejects unknown notification types and future notification times", async () => {
+    const store = new MemoryBotStore();
+    for (const [index, overrides] of [
+      { message_type: "ORDER" },
+      { created_at: "2026-08-02T12:40:00.000Z" },
+      { text: "x".repeat(4097) },
+    ].entries()) {
+      const response = await handleRequest(
+        await signedRequest(
+          "/state/v1/notifications",
+          "POST",
+          {
+            message_type: "SIGNAL",
+            text: "paper signal",
+            dedupe_key: `notify:test:${index}`,
+            signal_id: "BTC-20260802-001",
+            created_at: "2026-08-02T12:34:00.000Z",
+            ...overrides,
+          },
+          `nonce-notification-bad-${index}`,
+        ),
+        dependencies(store),
+      );
+      expect(response.status).toBe(400);
+    }
   });
 
   it("rejects unknown fields and oversized bodies", async () => {

@@ -15,10 +15,10 @@ market data and rules, not from a language model.
 > Phase 11 adds conservative fixed/managed replay and purged walk-forward
 > evaluation. No representative historical dataset has been evaluated, so the
 > strict win-rate objective above 60% at 2R or better remains unproven.
-> Phase 12 deployment boundaries are in preparation and remain hard-disabled;
-> the production orchestrator, report/signal delivery, resource provisioning,
-> and deployment are not complete. This must not yet be treated as a live
-> trading tool.
+> Phase 12 deployment boundaries and the deterministic orchestration core are in
+> preparation and remain hard-disabled. The typed D1 repository adapter, atomic
+> signal/outbox commit, resource provisioning, and deployment are not complete.
+> This must not yet be treated as a live trading tool.
 
 ## Non-negotiable behavior
 
@@ -100,8 +100,8 @@ npm run typecheck
 npm test
 ```
 
-Deployment stays intentionally disabled until the missing production
-orchestrator and every readiness check are complete. The Worker currently supports `/start`, `/help`,
+Deployment stays intentionally disabled until the missing durable repository
+adapter and every readiness check are complete. The Worker currently supports `/start`, `/help`,
 `/status`, `/pause`, and `/resume` for one configured owner in a private chat.
 
 ## Secrets

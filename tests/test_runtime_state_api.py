@@ -10,7 +10,7 @@ from btc_sentinel.runtime import HealthRun, StateApiClient, StateApiError
 from btc_sentinel.runtime.state_api import StateHttpResponse
 
 NOW = datetime(2026, 9, 2, 12, 0, tzinfo=UTC)
-SECRET_TEXT = "state-api-secret-abcdefghijklmnopqrstuvwxyz"
+SECRET_TEXT = "s" * 40
 
 
 class FakeAdapter:
@@ -48,12 +48,17 @@ class StateApiClientTests(unittest.TestCase):
                         "signal_generation_paused": True,
                         "latest_health_status": "DEGRADED",
                         "latest_health_at": "2026-09-02T11:55:00.000Z",
+                        "monitored_signal_ids": ["BTC-20260902-001"],
+                        "last_signal_at": "2026-09-02T11:50:00.000Z",
+                        "active_managed_signal": True,
                     },
                 )
             ]
         )
         bootstrap = self.client(adapter).bootstrap()
         self.assertTrue(bootstrap.signal_generation_paused)
+        self.assertEqual(bootstrap.monitored_signal_ids, ("BTC-20260902-001",))
+        self.assertTrue(bootstrap.active_managed_signal)
         url, method, headers, body, timeout = adapter.calls[0]
         self.assertEqual(
             (url, method, body, timeout),
@@ -89,6 +94,21 @@ class StateApiClientTests(unittest.TestCase):
         body = json.loads(adapter.calls[0][3])
         self.assertEqual(body["status"], "DEGRADED")
         self.assertEqual(body["finished_at"], "2026-09-02T12:01:00Z")
+
+    def test_notification_payload_is_typed_and_duplicate_is_visible(self) -> None:
+        adapter = FakeAdapter([response(201, {"accepted": True, "duplicate": False})])
+        inserted = self.client(adapter).enqueue_notification(
+            message_type="SIGNAL",
+            text="paper signal",
+            dedupe_key="notify:signal:BTC-20260902-001",
+            signal_id="BTC-20260902-001",
+            created_at=NOW,
+        )
+        self.assertTrue(inserted)
+        url, method, _headers, body, _timeout = adapter.calls[0]
+        self.assertEqual(url, "https://btc-sentinel.example/state/v1/notifications")
+        self.assertEqual(method, "POST")
+        self.assertEqual(json.loads(body)["message_type"], "SIGNAL")
 
     def test_rejects_untrusted_origin_bad_nonce_large_or_invalid_response(self) -> None:
         with self.assertRaises(ConfigurationError):
