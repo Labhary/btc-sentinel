@@ -110,6 +110,14 @@ class StateApiClientTests(unittest.TestCase):
         self.assertEqual(method, "POST")
         self.assertEqual(json.loads(body)["message_type"], "SIGNAL")
 
+    def test_notification_drain_is_bounded_and_uses_an_empty_signed_body(self) -> None:
+        adapter = FakeAdapter([response(200, {"drained": 1, "results": [{"status": "SENT"}]})])
+        self.assertEqual(self.client(adapter).drain_notifications(), 1)
+        url, method, _headers, body, _timeout = adapter.calls[0]
+        self.assertEqual(url, "https://btc-sentinel.example/state/v1/outbox/drain")
+        self.assertEqual(method, "POST")
+        self.assertEqual(body, b"")
+
     def test_rejects_untrusted_origin_bad_nonce_large_or_invalid_response(self) -> None:
         with self.assertRaises(ConfigurationError):
             StateApiClient("http://worker.example", SecretValue(SECRET_TEXT))

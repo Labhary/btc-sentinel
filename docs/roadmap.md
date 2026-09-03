@@ -38,9 +38,11 @@ add files without activating production schedules.
     D1 runtime-boundary migration, signed bootstrap/health API, idempotent
     cron-to-workflow dispatch, deterministic orchestration core, typed runtime
     bootstrap, durable notification enqueue, and independent activation gates
-    are implemented. The typed D1 repository mutation adapter, atomic
-    signal/outbox commit, preview provisioning, encrypted secret setup, webhook
-    registration, and activation remain incomplete.
+    are implemented, together with the typed D1 repository mutation adapter,
+    atomic signal/outbox commit, bounded outbox recovery, and migration 4.
+    Executable job assembly, representative backtest validation, preview
+    provisioning, encrypted secret setup, webhook registration, and activation
+    remain incomplete.
 13. **Paper observation**
     Run without money, preserve every result, change rules only through a new
     version backed by evidence.

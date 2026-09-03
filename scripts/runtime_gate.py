@@ -1,4 +1,4 @@
-"""Fail-closed gate for the not-yet-integrated production paper runtime."""
+"""Fail-closed gate for the not-yet-approved production paper runtime."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ def main() -> int:
         print("Paper engine is disabled; readiness checks only.")
         return 0
     raise SystemExit(
-        "Activation refused: the typed D1 repository adapter and atomic signal/outbox "
-        "commit are not implemented."
+        "Activation refused: executable job assembly, representative backtest validation, "
+        "preview verification, and activation review are not complete."
     )
 
 

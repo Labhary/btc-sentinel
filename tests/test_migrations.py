@@ -8,6 +8,7 @@ MIGRATIONS = [
     ROOT / "migrations" / "0001_initial.sql",
     ROOT / "migrations" / "0002_telegram_foundation.sql",
     ROOT / "migrations" / "0003_runtime_boundary.sql",
+    ROOT / "migrations" / "0004_runtime_repository.sql",
 ]
 
 
@@ -34,7 +35,32 @@ class MigrationTests(unittest.TestCase):
         versions = self.connection.execute(
             "SELECT version FROM schema_migrations ORDER BY version"
         ).fetchall()
-        self.assertEqual([row["version"] for row in versions], [1, 2, 3])
+        self.assertEqual([row["version"] for row in versions], [1, 2, 3, 4])
+
+    def test_runtime_mutation_receipts_are_append_only(self) -> None:
+        self.migrate_all()
+        self.connection.execute(
+            """
+            INSERT INTO runtime_mutations(dedupe_key, operation, applied_at)
+            VALUES ('lifecycle:test', 'activate_signal', '2026-09-03T00:00:00Z')
+            """
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute(
+                "UPDATE runtime_mutations SET operation = 'close_track' "
+                "WHERE dedupe_key = 'lifecycle:test'"
+            )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute(
+                "DELETE FROM runtime_mutations WHERE dedupe_key = 'lifecycle:test'"
+            )
+
+    def test_runtime_assertion_rejects_non_singleton_mutations(self) -> None:
+        self.migrate_all()
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute("INSERT INTO runtime_assertions(changed_rows) VALUES (0)")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.connection.execute("INSERT INTO runtime_assertions(changed_rows) VALUES (2)")
 
     def test_runtime_nonce_and_dispatch_identity_are_durable(self) -> None:
         self.migrate_all()

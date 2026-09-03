@@ -6,6 +6,7 @@ import type {
   DeliveryStatus,
   HealthRunInput,
   OutboxMessage,
+  RepositoryCommand,
   SentTelegramMessage,
   StatusSummary,
   RuntimeBootstrapState,
@@ -45,6 +46,7 @@ export class MemoryBotStore implements BotStore {
     string,
     { message: SystemNotificationInput; chatId: string }
   >();
+  readonly repositoryCommands: RepositoryCommand[] = [];
   readonly dispatches = new Map<
     string,
     { scheduledAt: string; status: "CLAIMED" | "SENT" | "FAILED"; errorCode: string | null }
@@ -124,6 +126,13 @@ export class MemoryBotStore implements BotStore {
     return "PENDING";
   }
 
+  async listPendingOutbox(limit: number, _availableAt: string): Promise<OutboxMessage[]> {
+    return [...this.outbox.values()]
+      .filter((item) => item.status === "PENDING")
+      .slice(0, Math.max(0, limit))
+      .map((item) => item.message);
+  }
+
   async markOutboxUnknown(outboxId: string, _at: string): Promise<void> {
     const item = this.findOutbox(outboxId);
     if (item.status === "PENDING") {
@@ -185,6 +194,14 @@ export class MemoryBotStore implements BotStore {
     }
     this.systemNotifications.set(message.dedupeKey, { message, chatId });
     return true;
+  }
+
+  async executeRepositoryCommand(
+    command: RepositoryCommand,
+    _ownerChatId: string,
+  ): Promise<unknown> {
+    this.repositoryCommands.push(command);
+    return { operation: command.operation };
   }
 
   async claimWorkflowDispatch(

@@ -237,6 +237,18 @@ class StateApiClient:
             raise StateApiError("State notification response is invalid")
         return not payload["duplicate"]
 
+    def drain_notifications(self) -> int:
+        payload = self._request("POST", "/state/v1/outbox/drain", None, {200})
+        if (
+            not isinstance(payload, dict)
+            or not isinstance(payload.get("drained"), int)
+            or not 0 <= payload["drained"] <= 25
+            or not isinstance(payload.get("results"), list)
+            or len(payload["results"]) != payload["drained"]
+        ):
+            raise StateApiError("State outbox drain response is invalid")
+        return payload["drained"]
+
     def record_health(self, run: HealthRun) -> bool:
         payload = self._request("POST", "/state/v1/health", run.payload(), {200, 201})
         if (
@@ -246,6 +258,37 @@ class StateApiClient:
         ):
             raise StateApiError("State health response is invalid")
         return not payload["duplicate"]
+
+    def repository_command(self, operation: str, arguments: Mapping[str, object]) -> object:
+        allowed = {
+            "allocate_signal_id",
+            "create_signal",
+            "get_signal_status",
+            "get_signal_strategy",
+            "get_lifecycle_signal",
+            "activate_signal",
+            "transition_pending",
+            "close_track",
+            "get_track_status",
+            "get_checkpoint",
+            "advance_checkpoint",
+            "apply_management_decision",
+            "management_decision_exists",
+            "get_latest_statistics_snapshot",
+            "list_outcome_samples",
+            "list_report_signals",
+        }
+        if operation not in allowed:
+            raise StateApiError("State repository operation is not allowed")
+        payload = self._request(
+            "POST",
+            "/state/v1/repository",
+            {"operation": operation, "arguments": dict(arguments)},
+            {200, 201},
+        )
+        if not isinstance(payload, dict) or set(payload) != {"result"}:
+            raise StateApiError("State repository response is invalid")
+        return payload["result"]
 
     def _request(
         self,

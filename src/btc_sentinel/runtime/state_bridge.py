@@ -28,6 +28,7 @@ class StateApiRuntimeBridge:
         self.clock = clock
 
     def load(self) -> RuntimeState:
+        self.client.drain_notifications()
         bootstrap = self.client.bootstrap()
         last_signal_at = (
             None

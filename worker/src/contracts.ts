@@ -48,6 +48,11 @@ export interface SystemNotificationInput {
   createdAt: string;
 }
 
+export interface RepositoryCommand {
+  operation: string;
+  arguments: Record<string, unknown>;
+}
+
 export interface BotStore {
   beginUpdate(updateId: number, receivedAt: string, leaseUntil: string): Promise<boolean>;
   finishUpdate(updateId: number, status: "COMPLETED" | "IGNORED", at: string): Promise<void>;
@@ -56,6 +61,7 @@ export interface BotStore {
   getStatusSummary(): Promise<StatusSummary>;
   getRuntimeBootstrapState(): Promise<RuntimeBootstrapState>;
   prepareOutbox(message: OutboxMessage): Promise<DeliveryStatus>;
+  listPendingOutbox(limit: number, availableAt: string): Promise<OutboxMessage[]>;
   markOutboxUnknown(outboxId: string, at: string): Promise<void>;
   markOutboxSent(outboxId: string, telegramMessageId: string, at: string): Promise<void>;
   markOutboxFailed(outboxId: string, errorCode: string, at: string): Promise<void>;
@@ -68,6 +74,7 @@ export interface BotStore {
   claimStateNonce(nonce: string, expiresAt: string, createdAt: string): Promise<boolean>;
   recordHealthRun(run: HealthRunInput): Promise<boolean>;
   enqueueSystemNotification(message: SystemNotificationInput, chatId: string): Promise<boolean>;
+  executeRepositoryCommand(command: RepositoryCommand, ownerChatId: string): Promise<unknown>;
   claimWorkflowDispatch(
     dispatchKey: string,
     scheduledAt: string,
