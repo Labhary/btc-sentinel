@@ -2,6 +2,17 @@
 
 All notable project changes are recorded here.
 
+## 0.12.1 — 2026-09-03
+
+- Added the deterministic paper-engine orchestration core with completed-candle
+  lifecycle-before-management ordering, selective signal admission, scheduled
+  reports, bounded health, and explicit pause behavior.
+- Expanded signed bootstrap with bounded monitored-signal/history state.
+- Added a typed, idempotent system-notification endpoint that injects the owner
+  chat identity inside the Worker and accepts no arbitrary destination.
+- Kept activation hard-disabled: typed D1 repository mutations and atomic
+  signal/outbox commits are still required before a production run is safe.
+
 ## 0.12.0 — 2026-09-02
 
 - Added a replay-protected HMAC-SHA256 Worker state boundary for bounded

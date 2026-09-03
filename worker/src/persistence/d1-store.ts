@@ -6,6 +6,8 @@ import type {
   HealthRunInput,
   OutboxMessage,
   StatusSummary,
+  RuntimeBootstrapState,
+  SystemNotificationInput,
 } from "../contracts";
 
 function changes(result: D1Result<unknown>): number {
@@ -124,6 +126,29 @@ export class D1BotStore implements BotStore {
     };
   }
 
+  async getRuntimeBootstrapState(): Promise<RuntimeBootstrapState> {
+    const signals = await this.database
+      .prepare(
+        `SELECT signal_id, lifecycle_status, created_at
+         FROM signals
+         WHERE lifecycle_status IN ('PENDING', 'ACTIVE')
+         ORDER BY created_at, signal_id
+         LIMIT 101`,
+      )
+      .all<{ signal_id: string; lifecycle_status: string; created_at: string }>();
+    if (signals.results.length > 100) {
+      throw new Error("Runtime signal limit exceeded");
+    }
+    const latest = await this.database
+      .prepare("SELECT created_at FROM signals ORDER BY created_at DESC, signal_id DESC LIMIT 1")
+      .first<{ created_at: string }>();
+    return {
+      monitoredSignalIds: signals.results.map((item) => item.signal_id),
+      lastSignalAt: latest?.created_at ?? null,
+      activeManagedSignal: signals.results.some((item) => item.lifecycle_status === "ACTIVE"),
+    };
+  }
+
   async prepareOutbox(message: OutboxMessage): Promise<DeliveryStatus> {
     await this.database
       .prepare(
@@ -233,6 +258,31 @@ export class D1BotStore implements BotStore {
         run.dataFresh ? 1 : 0,
         JSON.stringify(run.summary),
         run.dedupeKey,
+      )
+      .run();
+    return changes(result) === 1;
+  }
+
+  async enqueueSystemNotification(
+    message: SystemNotificationInput,
+    chatId: string,
+  ): Promise<boolean> {
+    const result = await this.database
+      .prepare(
+        `INSERT OR IGNORE INTO outbox(
+           outbox_id, signal_id, message_type, payload_json, delivery_status,
+           dedupe_key, attempt_count, available_at, created_at, updated_at
+         ) VALUES (?, ?, ?, ?, 'PENDING', ?, 0, ?, ?, ?)`,
+      )
+      .bind(
+        `runtime-${message.dedupeKey}`,
+        message.signalId,
+        message.messageType,
+        JSON.stringify({ chat_id: chatId, text: message.text }),
+        message.dedupeKey,
+        message.createdAt,
+        message.createdAt,
+        message.createdAt,
       )
       .run();
     return changes(result) === 1;

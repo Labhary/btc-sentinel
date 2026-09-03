@@ -13,7 +13,8 @@ def main() -> int:
         print("Paper engine is disabled; readiness checks only.")
         return 0
     raise SystemExit(
-        "Activation refused: the end-to-end production orchestrator is not implemented."
+        "Activation refused: the typed D1 repository adapter and atomic signal/outbox "
+        "commit are not implemented."
     )
 
 

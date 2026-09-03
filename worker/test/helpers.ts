@@ -8,6 +8,8 @@ import type {
   OutboxMessage,
   SentTelegramMessage,
   StatusSummary,
+  RuntimeBootstrapState,
+  SystemNotificationInput,
   TelegramSender,
 } from "../src/contracts";
 import type { WorkerConfig } from "../src/config";
@@ -39,6 +41,10 @@ export class MemoryBotStore implements BotStore {
   readonly commands: RecordedCommand[] = [];
   readonly nonces = new Set<string>();
   readonly healthRuns = new Map<string, HealthRunInput>();
+  readonly systemNotifications = new Map<
+    string,
+    { message: SystemNotificationInput; chatId: string }
+  >();
   readonly dispatches = new Map<
     string,
     { scheduledAt: string; status: "CLAIMED" | "SENT" | "FAILED"; errorCode: string | null }
@@ -94,6 +100,14 @@ export class MemoryBotStore implements BotStore {
 
   async getStatusSummary(): Promise<StatusSummary> {
     return this.summary;
+  }
+
+  async getRuntimeBootstrapState(): Promise<RuntimeBootstrapState> {
+    return {
+      monitoredSignalIds: [],
+      lastSignalAt: null,
+      activeManagedSignal: false,
+    };
   }
 
   async prepareOutbox(message: OutboxMessage): Promise<DeliveryStatus> {
@@ -162,6 +176,17 @@ export class MemoryBotStore implements BotStore {
     return true;
   }
 
+  async enqueueSystemNotification(
+    message: SystemNotificationInput,
+    chatId: string,
+  ): Promise<boolean> {
+    if (this.systemNotifications.has(message.dedupeKey)) {
+      return false;
+    }
+    this.systemNotifications.set(message.dedupeKey, { message, chatId });
+    return true;
+  }
+
   async claimWorkflowDispatch(
     dispatchKey: string,
     scheduledAt: string,
@@ -223,10 +248,10 @@ export const fixedClock: Clock = {
 };
 
 export const testConfig: WorkerConfig = {
-  telegramBotToken: "not-used-by-fake-sender",
-  telegramAdminUserId: "424242",
-  telegramWebhookSecret: "webhook_secret_abcdefghijklmnopqrstuvwxyz",
-  stateApiHmacSecret: "state_api_secret_abcdefghijklmnopqrstuvwxyz",
+  telegramBotToken: `${"0".repeat(8)}:${"t".repeat(24)}`,
+  telegramAdminUserId: "42".repeat(3),
+  telegramWebhookSecret: "w".repeat(40),
+  stateApiHmacSecret: "s".repeat(40),
   productionDispatchEnabled: false,
   githubActionsToken: null,
 };

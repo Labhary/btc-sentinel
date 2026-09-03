@@ -87,6 +87,9 @@ class StateBootstrap:
     signal_generation_paused: bool
     latest_health_status: str | None
     latest_health_at: str | None
+    monitored_signal_ids: tuple[str, ...] = ()
+    last_signal_at: str | None = None
+    active_managed_signal: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,7 +185,57 @@ class StateApiClient:
             raise StateApiError("State bootstrap health status is invalid")
         if health_at is not None and not isinstance(health_at, str):
             raise StateApiError("State bootstrap health time is invalid")
-        return StateBootstrap(payload["signal_generation_paused"], health_status, health_at)
+        monitored = payload.get("monitored_signal_ids")
+        last_signal_at = payload.get("last_signal_at")
+        active_managed = payload.get("active_managed_signal")
+        if (
+            not isinstance(monitored, list)
+            or len(monitored) > 100
+            or any(not isinstance(value, str) for value in monitored)
+            or len(monitored) != len(set(monitored))
+        ):
+            raise StateApiError("State bootstrap monitored signals are invalid")
+        if last_signal_at is not None and not isinstance(last_signal_at, str):
+            raise StateApiError("State bootstrap signal time is invalid")
+        if not isinstance(active_managed, bool):
+            raise StateApiError("State bootstrap active state is invalid")
+        return StateBootstrap(
+            payload["signal_generation_paused"],
+            health_status,
+            health_at,
+            tuple(monitored),
+            last_signal_at,
+            active_managed,
+        )
+
+    def enqueue_notification(
+        self,
+        *,
+        message_type: str,
+        text: str,
+        dedupe_key: str,
+        signal_id: str | None,
+        created_at: datetime,
+    ) -> bool:
+        payload = self._request(
+            "POST",
+            "/state/v1/notifications",
+            {
+                "message_type": message_type,
+                "text": text,
+                "dedupe_key": dedupe_key,
+                "signal_id": signal_id,
+                "created_at": iso_utc(created_at),
+            },
+            {200, 201},
+        )
+        if (
+            not isinstance(payload, dict)
+            or payload.get("accepted") is not True
+            or not isinstance(payload.get("duplicate"), bool)
+        ):
+            raise StateApiError("State notification response is invalid")
+        return not payload["duplicate"]
 
     def record_health(self, run: HealthRun) -> bool:
         payload = self._request("POST", "/state/v1/health", run.payload(), {200, 201})
