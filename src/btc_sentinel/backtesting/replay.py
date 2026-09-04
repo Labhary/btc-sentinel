@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -277,6 +278,58 @@ class HistoricalReplayStore:
                 str(candle.taker_buy_quote_volume),
             ),
         )
+
+    def metadata(self, key: str) -> str:
+        if key not in {"dataset_id", "manifest_sha256", "coverage_start", "coverage_end"}:
+            raise DomainValidationError("Unknown historical replay metadata key")
+        row = self.connection.execute(
+            "SELECT value FROM replay_metadata WHERE key = ?",
+            (key,),
+        ).fetchone()
+        if row is None:
+            raise DomainValidationError("Historical replay store is not initialized")
+        return str(row[0])
+
+    def coverage(self) -> tuple[datetime, datetime]:
+        return (
+            ensure_utc(datetime.fromisoformat(self.metadata("coverage_start"))),
+            ensure_utc(datetime.fromisoformat(self.metadata("coverage_end"))),
+        )
+
+    def iter_candles(
+        self,
+        interval: MarketInterval,
+        start: datetime,
+        end: datetime,
+    ) -> Iterator[Candle]:
+        if interval is not MarketInterval.ONE_MINUTE:
+            raise DomainValidationError("Streaming replay currently supports one-minute candles")
+        first = ensure_utc(start)
+        stop = ensure_utc(end)
+        if stop <= first or not interval.is_open_time_aligned(first):
+            raise DomainValidationError("Historical streaming range is invalid")
+        cursor = self.connection.execute(
+            """
+            SELECT open_time_ms, close_time_ms, open, high, low, close, volume,
+                   quote_volume, trade_count, taker_buy_base_volume,
+                   taker_buy_quote_volume
+            FROM replay_candles
+            WHERE interval = ? AND open_time_ms >= ? AND open_time_ms < ?
+            ORDER BY open_time_ms
+            """,
+            (interval.value, _epoch_milliseconds(first), _epoch_milliseconds(stop)),
+        )
+        expected = first
+        seen = False
+        for row in cursor:
+            candle = self._row(interval, row)
+            if candle.open_time != expected:
+                raise DomainValidationError("Historical streaming range contains a candle gap")
+            seen = True
+            expected = candle.open_time + timedelta(minutes=1)
+            yield candle
+        if not seen:
+            raise DomainValidationError("Historical streaming range contains no candles")
 
     def series_at(
         self,

@@ -36,9 +36,11 @@ add files without activating production schedules.
     checksum-bound Binance Vision one-minute archive preflight with explicit
     millisecond/microsecond handling. A disk-backed point-in-time index now
     creates complete-only 15m through monthly Spot views and exhaustive 15m
-    candidate boundaries without future leakage. Full signal/lifecycle replay,
-    point-in-time news coverage, and a representative historical verdict are
-    still required before any performance claim.
+    candidate boundaries without future leakage. The exhaustive signal runner
+    now streams fixed/managed lifecycle outcomes, enforces managed activity and
+    cooldown, and connects eligible runs to walk-forward evaluation. Verified
+    point-in-time news/macro coverage and a representative historical verdict
+    are still required before any performance claim.
 12. **Free deployment — in progress, inactive**
     D1 runtime-boundary migration, signed bootstrap/health API, idempotent
     cron-to-workflow dispatch, deterministic orchestration core, typed runtime

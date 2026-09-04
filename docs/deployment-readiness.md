@@ -11,9 +11,10 @@ refuses to run until historical validation and the remaining preview and
 provisioning steps are complete.
 
 The historical path now includes immutable archive preflight plus a
-disk-backed, point-in-time multi-timeframe Spot candle index. It still has not
-executed the full strategy on a representative dataset, so this is engineering
-readiness rather than performance evidence.
+disk-backed, point-in-time multi-timeframe Spot candle index and an exhaustive
+streaming signal/lifecycle runner. The runner blocks when historical news/macro
+coverage is missing and has not executed an eligible representative dataset,
+so this is engineering readiness rather than performance evidence.
 
 Deploying the current branch would therefore be premature. A green CI run
 proves configuration and boundary behavior; it does not prove a running bot.

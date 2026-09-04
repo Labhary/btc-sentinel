@@ -65,12 +65,34 @@ from completed 15-minute boundaries. Imports are transactional: a late hash,
 continuity, coverage, or row failure rolls back every inserted candle and all
 metadata.
 
-This index supplies historical Spot candle views only. It does not invent
+The index supplies historical Spot candle views only. It does not invent
 unavailable point-in-time order books, derivatives history, news, or macro
-events, and it has not yet executed the strategy or produced a performance
-verdict. Point-in-time news coverage, full signal/lifecycle replay,
-walk-forward evaluation, and the policy gates below must still run before any
-performance conclusion is possible.
+events. The runner below consumes those views, but verified point-in-time risk
+coverage and the policy gates must still pass before any performance conclusion
+is possible.
+
+## Exhaustive signal and lifecycle runner
+
+Version `0.12.6` evaluates the Phase 6 signal engine at every completed
+15-minute boundary in a declared replay-store range. Each decision receives
+only its point-in-time candle view and a risk assessment evaluated at that exact
+instant. News published later is rejected. When no historical news/macro
+provider is supplied, the built-in provider returns `BLOCK`; it never silently
+substitutes `CLEAR` or permits a performance verdict.
+
+Created signals feed two incremental one-minute simulations: the unchanged
+fixed track and the managed break-even track. Candles stream from SQLite, so a
+long-lived trade does not require loading the remaining multi-year dataset into
+memory. New setups remain blocked while the managed track is active and during
+the four-hour cooldown. An older fixed virtual comparison may remain open, as
+documented by the lifecycle policy, without blocking a later managed setup.
+
+Eligible runs connect directly to the existing purged walk-forward comparison.
+A fixed-track result that resolves after a test window begins is excluded from
+that fold's training evidence, preventing delayed virtual outcomes from leaking
+future knowledge. The runner is performance-ineligible until a verified
+point-in-time risk provider is supplied; therefore no representative verdict
+has been produced by this version.
 
 ## Conservative simulation
 

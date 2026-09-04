@@ -2,6 +2,21 @@
 
 All notable project changes are recorded here.
 
+## 0.12.6 — 2026-09-04
+
+- Added exhaustive point-in-time signal evaluation over every completed
+  15-minute historical boundary with deterministic signal identity and
+  one-active-managed-trade/cooldown enforcement.
+- Added incremental fixed and managed lifecycle simulation that streams future
+  one-minute candles from SQLite without retaining the full future path.
+- Added an explicit historical risk-provider contract that rejects future or
+  misaligned evidence and blocks by default when news/macro coverage is absent.
+- Allowed old fixed virtual comparison tracks to overlap later managed signals,
+  while excluding training outcomes that were not resolved before a test fold.
+- Connected eligible streamed runs to the existing walk-forward comparison,
+  but did not supply risk history, run a representative dataset, claim a win
+  rate, deploy resources, or enable either activation gate.
+
 ## 0.12.5 — 2026-09-04
 
 - Added a disk-backed SQLite replay index that streams the validated Spot

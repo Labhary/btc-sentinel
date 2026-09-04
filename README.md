@@ -22,8 +22,10 @@ market data and rules, not from a language model.
 > not complete.
 > A streaming, checksum-bound Binance Vision historical-data preflight is now
 > available. A disk-backed replay index now creates complete-only point-in-time
-> 15m through monthly Spot views, but the strategy has not run on a representative
-> dataset and has not passed a backtest.
+> 15m through monthly Spot views, and an exhaustive runner streams signal and
+> lifecycle evaluation without future leakage. Missing historical news/macro
+> coverage blocks by default, so the strategy has not run on a representative
+> eligible dataset and has not passed a backtest.
 > This must not yet be treated as a live trading tool.
 
 ## Non-negotiable behavior
