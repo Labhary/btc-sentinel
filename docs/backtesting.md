@@ -21,6 +21,36 @@ run metadata; they must never be reconstructed from later information.
 The repository tests use synthetic cases only to prove mechanics and failure
 handling. Synthetic test results are not evidence of profitability.
 
+## Historical archive preflight
+
+Version `0.12.4` adds a streaming validator for Binance Vision Spot
+`BTCUSDT` one-minute ZIP archives. It verifies an immutable JSON manifest,
+SHA-256 for every archive, one expected CSV member per ZIP, exact 12-field
+klines, decimal values, row counts, UTC coverage, and minute-by-minute
+continuity. ZIP traversal, encryption, unsafe compression ratios, oversized
+inputs, duplicate JSON fields, unknown manifest fields, and checksum changes
+are rejected.
+
+Run the preflight without loading the multi-year dataset into memory:
+
+```bash
+btc-sentinel-validate-history path/to/manifest.json
+```
+
+The manifest records `schema_version`, `dataset_id`, fixed Spot `BTCUSDT`/`1m`
+identity, exclusive UTC coverage, `https://data.binance.vision` as the source
+origin, `exhaustive_candidate_scan: true`, excluded features, and ordered
+archives. Each archive records its safe relative path, a fixed Binance Vision
+Spot URL with the same filename, lowercase SHA-256, timestamp unit, exclusive
+UTC coverage, and exact row count. Timestamp units are explicit because
+Binance documents microsecond Spot timestamps from 2025-01-01 onward; the
+validator never guesses the unit.
+
+A successful preflight reports `performance_verdict: NOT_RUN`. Data integrity
+is not strategy evidence. Multi-timeframe candidate replay, point-in-time news
+coverage, walk-forward evaluation, and the policy gates below must still run
+before any performance conclusion is possible.
+
 ## Conservative simulation
 
 - Only completed, continuous Spot BTCUSDT one-minute candles are accepted.

@@ -2,6 +2,18 @@
 
 All notable project changes are recorded here.
 
+## 0.12.4 — 2026-09-04
+
+- Added a strict immutable-manifest loader for Binance Vision Spot BTCUSDT
+  one-minute archives with explicit millisecond and microsecond timestamp units.
+- Added streaming SHA-256, ZIP/CSV structure, size, row-count, value, UTC
+  coverage, and complete candle-continuity validation.
+- Added the `btc-sentinel-validate-history` preflight command, which explicitly
+  reports `performance_verdict: NOT_RUN` and cannot be mistaken for evidence of
+  the requested greater-than-60% win rate at 2R or better.
+- Kept production and paper activation disabled; no dataset, performance claim,
+  deployment, credential, webhook, or exchange-order capability was added.
+
 ## 0.12.3 — 2026-09-04
 
 - Added the executable Python paper-engine assembly for the public Binance and

@@ -32,8 +32,11 @@ add files without activating production schedules.
 11. **Backtesting — complete**
     Conservative fixed/managed replay, regime coverage, costs, purged
     walk-forward evaluation, sensitivity, and stability gates. The framework is
-    complete; a representative exhaustive historical run is still required
-    before any performance claim.
+    complete. The first Phase 12 validation increment adds streaming, immutable,
+    checksum-bound Binance Vision one-minute archive preflight with explicit
+    millisecond/microsecond handling. Multi-timeframe exhaustive replay and a
+    representative historical verdict are still required before any
+    performance claim.
 12. **Free deployment — in progress, inactive**
     D1 runtime-boundary migration, signed bootstrap/health API, idempotent
     cron-to-workflow dispatch, deterministic orchestration core, typed runtime
