@@ -2,6 +2,18 @@
 
 All notable project changes are recorded here.
 
+## 0.12.5 — 2026-09-04
+
+- Added a disk-backed SQLite replay index that streams the validated Spot
+  BTCUSDT one-minute archive without loading the full dataset into memory.
+- Added exact completed-candle resampling for 15-minute, hourly, four-hour,
+  daily, Monday-based UTC weekly, and calendar-month UTC analysis views.
+- Added point-in-time queries that expose a candle only after its close and
+  discard incomplete leading and trailing aggregate buckets.
+- Added exhaustive 15-minute candidate boundaries and atomic import rollback,
+  while keeping the historical performance verdict unrun and both production
+  activation gates disabled.
+
 ## 0.12.4 — 2026-09-04
 
 - Added a strict immutable-manifest loader for Binance Vision Spot BTCUSDT

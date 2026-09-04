@@ -18,9 +18,12 @@ market data and rules, not from a language model.
 > Phase 12 deployment boundaries, deterministic orchestration core, typed D1
 > repository adapter, atomic signal/outbox commit, and executable GitHub Actions
 > job assembly are implemented and remain hard-disabled. Representative backtest
-> validation, resource provisioning, preview verification, and deployment are not complete.
+> validation, resource provisioning, preview verification, and deployment are
+> not complete.
 > A streaming, checksum-bound Binance Vision historical-data preflight is now
-> available, but it does not claim that the strategy has passed a backtest.
+> available. A disk-backed replay index now creates complete-only point-in-time
+> 15m through monthly Spot views, but the strategy has not run on a representative
+> dataset and has not passed a backtest.
 > This must not yet be treated as a live trading tool.
 
 ## Non-negotiable behavior

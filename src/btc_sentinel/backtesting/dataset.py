@@ -8,7 +8,7 @@ import io
 import json
 import re
 import zipfile
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
@@ -365,13 +365,27 @@ class HistoricalDatasetLoader:
         summary, _ = self._read(manifest_path, collect=False)
         return summary
 
+    def visit(
+        self,
+        manifest_path: Path,
+        visitor: Callable[[Candle], None],
+    ) -> HistoricalDatasetSummary:
+        """Validate a dataset while streaming each candle to a bounded consumer."""
+
+        summary, _ = self._read(manifest_path, collect=False, visitor=visitor)
+        return summary
+
     def load(self, manifest_path: Path) -> HistoricalDataset:
         summary, candles = self._read(manifest_path, collect=True)
         assert candles is not None
         return HistoricalDataset(summary.manifest, summary.manifest_sha256, CandleSeries(candles))
 
     def _read(
-        self, manifest_path: Path, *, collect: bool
+        self,
+        manifest_path: Path,
+        *,
+        collect: bool,
+        visitor: Callable[[Candle], None] | None = None,
     ) -> tuple[HistoricalDatasetSummary, tuple[Candle, ...] | None]:
         root = manifest_path.resolve().parent
         manifest, manifest_digest = parse_manifest(manifest_path.read_bytes())
@@ -408,6 +422,8 @@ class HistoricalDatasetLoader:
                             "Historical dataset exceeds the bounded in-memory load limit"
                         )
                     candles.append(candle)
+                if visitor is not None:
+                    visitor(candle)
         assert first_open is not None and previous_open is not None and last_close is not None
         if first_open != manifest.coverage_start:
             raise HistoricalDataError("First candle does not match manifest coverage_start")
