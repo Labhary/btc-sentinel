@@ -23,9 +23,12 @@ market data and rules, not from a language model.
 > A streaming, checksum-bound Binance Vision historical-data preflight is now
 > available. A disk-backed replay index now creates complete-only point-in-time
 > 15m through monthly Spot views, and an exhaustive runner streams signal and
-> lifecycle evaluation without future leakage. Missing historical news/macro
-> coverage blocks by default, so the strategy has not run on a representative
-> eligible dataset and has not passed a backtest.
+> lifecycle evaluation without future leakage. A checksum-bound 15-minute
+> historical risk-timeline store rejects future evidence and required-source
+> gaps that do not block. An executable command now joins both immutable inputs
+> through exhaustive replay and separate fixed/managed verdicts. No
+> representative market/risk dataset has been run, so the strategy has not
+> passed a backtest.
 > This must not yet be treated as a live trading tool.
 
 ## Non-negotiable behavior
@@ -97,6 +100,8 @@ suite can be run without downloading pytest:
 ```bash
 PYTHONPATH=src python -m unittest discover -s tests -v
 btc-sentinel-validate-history path/to/manifest.json
+btc-sentinel-validate-risk-history path/to/risk-manifest.json
+btc-sentinel-run-history market.json risk.json START_UTC END_UTC
 ```
 
 The command Worker is checked separately:
