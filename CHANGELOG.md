@@ -2,6 +2,19 @@
 
 All notable project changes are recorded here.
 
+## 0.12.3 — 2026-09-04
+
+- Added the executable Python paper-engine assembly for the public Binance and
+  news collectors, signed D1 repository, orchestration, notification recovery,
+  and durable health sink.
+- Added strict runtime-only configuration with explicit dispatch identity,
+  production mode, HTTPS state origin, redacted signing secret, and frozen
+  BTCUSDT, 2R, risk, and Casablanca settings.
+- Wired the entrypoint into the GitHub Actions workflow after the hard-coded
+  activation refusal and added fail-closed assembly, output, and workflow tests.
+- Kept both production gates disabled and performed no deployment, secret setup,
+  webhook registration, Telegram delivery, exchange authentication, or order action.
+
 ## 0.12.2 — 2026-09-03
 
 - Added the typed Python repository adapter and fixed, allowlisted signed Worker

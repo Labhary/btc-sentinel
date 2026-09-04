@@ -4,11 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "btc-sentinel"
-version = "0.12.2"
+version = "0.12.3"
 description = "Auditable BTC/USDT analysis and paper-trading Telegram bot"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = []
+
+[project.scripts]
+btc-sentinel-paper-engine = "btc_sentinel.runtime.job:main"
 
 [project.optional-dependencies]
 dev = [

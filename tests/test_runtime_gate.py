@@ -26,7 +26,7 @@ class RuntimeGateTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn("disabled", result.stdout)
 
-    def test_enabled_gate_refuses_an_incomplete_orchestrator(self) -> None:
+    def test_enabled_gate_refuses_unreviewed_activation(self) -> None:
         result = self.run_gate("true")
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Activation refused", result.stderr)

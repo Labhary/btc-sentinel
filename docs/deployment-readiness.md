@@ -5,8 +5,10 @@ Cloudflare/D1 boundary, five-minute dispatch plumbing, signed health API,
 deterministic orchestration core, typed runtime bootstrap, durable notification
 enqueue, typed D1 repository mutations, atomic signal/outbox persistence,
 bounded pending-outbox recovery, and a GitHub Actions workflow scaffold. It
-deliberately refuses to run a production paper engine until executable job
-assembly and the remaining validation and provisioning steps are complete.
+also contains the executable job assembly for the public collectors, typed
+repository, orchestrator, notification recovery, and health sink. It deliberately
+refuses to run until historical validation and the remaining preview and
+provisioning steps are complete.
 
 Deploying the current branch would therefore be premature. A green CI run
 proves configuration and boundary behavior; it does not prove a running bot.
@@ -21,9 +23,9 @@ Two independent values default to `false`:
   remains a readiness-only no-op while it is false and hard-fails if someone
   changes it to true before the full runtime is approved.
 
-The hard-coded runtime gate may be replaced only after executable job assembly,
-representative backtest validation, preview checks, and an explicit activation
-review. Merely changing variables cannot bypass it.
+The hard-coded runtime gate may be replaced only after representative backtest
+validation, preview checks, and an explicit activation review. Merely changing
+variables cannot bypass it.
 
 ## Implemented boundary
 
@@ -42,6 +44,9 @@ review. Merely changing variables cannot bypass it.
   oversized bodies, unknown fields, and invalid health records fail closed.
 - The Python client rejects redirects, non-HTTPS origins, oversized or malformed
   responses, and non-success HTTP status codes.
+- The Python job requires an explicit valid dispatch identity, production mode,
+  the fixed BTCUSDT/Casablanca baseline, frozen 2R and risk settings, and a
+  separate state-API origin and signing secret. It logs only bounded summaries.
 
 ## Secrets and permissions
 
@@ -65,20 +70,18 @@ workflow. No Binance key exists or is required.
 
 These steps are intentionally **not performed by this pull request**:
 
-1. Assemble the executable GitHub Actions paper-engine job around the typed
-   repository, collectors, orchestrator, health bridge, and strict configuration.
-2. Run a representative exhaustive historical backtest. Treat a failed or
+1. Run a representative exhaustive historical backtest. Treat a failed or
    inconclusive result as a stop condition, not as permission to tune the same
    test window.
-3. Create a D1 database and replace the placeholder database ID in a private
+2. Create a D1 database and replace the placeholder database ID in a private
    `worker/wrangler.toml` file.
-4. Apply migrations 1–4 to a preview D1 database and verify replayability.
-5. Add encrypted secrets through Wrangler/GitHub settings and deploy a preview
+3. Apply migrations 1–4 to a preview D1 database and verify replayability.
+4. Add encrypted secrets through Wrangler/GitHub settings and deploy a preview
    with dispatch still disabled.
-6. Verify `/health`, signed bootstrap/health writes, webhook ownership checks,
+5. Verify `/health`, signed bootstrap/health writes, webhook ownership checks,
    duplicate dispatch behavior, and D1 audit rows.
-7. Register the Telegram webhook only after the preview checks pass.
-8. Enable paper observation with both gates under a reviewed change. Never add
+6. Register the Telegram webhook only after the preview checks pass.
+7. Enable paper observation with both gates under a reviewed change. Never add
    exchange order permissions.
 
 Cloudflare documents that Cron Triggers execute in UTC and may take time to

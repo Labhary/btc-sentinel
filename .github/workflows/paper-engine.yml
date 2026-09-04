@@ -43,9 +43,21 @@ jobs:
           import re
 
           value = os.environ.get("DISPATCH_KEY", "")
-          if not re.fullmatch(r"[A-Za-z0-9_.:+-]{1,128}", value):
+          if not re.fullmatch(r"[A-Za-z0-9_.:+-]{1,100}", value):
               raise SystemExit("Invalid dispatch identity")
           PY
 
       - name: Enforce activation boundary
         run: python scripts/runtime_gate.py
+
+      # This step is deliberately unreachable while runtime_gate.py retains its
+      # hard-coded refusal. It documents and tests the exact executable assembly
+      # without allowing a repository variable change to activate production.
+      - name: Run assembled paper engine
+        if: ${{ env.PAPER_ENGINE_ENABLED == 'true' }}
+        env:
+          APP_ENV: production
+          DISPATCH_KEY: ${{ inputs.dispatch_key }}
+          STATE_API_BASE_URL: ${{ vars.STATE_API_BASE_URL }}
+          STATE_API_HMAC_SECRET: ${{ secrets.STATE_API_HMAC_SECRET }}
+        run: btc-sentinel-paper-engine

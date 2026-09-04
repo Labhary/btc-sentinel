@@ -40,9 +40,10 @@ add files without activating production schedules.
     bootstrap, durable notification enqueue, and independent activation gates
     are implemented, together with the typed D1 repository mutation adapter,
     atomic signal/outbox commit, bounded outbox recovery, and migration 4.
-    Executable job assembly, representative backtest validation, preview
-    provisioning, encrypted secret setup, webhook registration, and activation
-    remain incomplete.
+    The executable job now wires the public collectors, typed repository,
+    orchestrator, notification recovery, and health sink behind the hard gate.
+    Representative backtest validation, preview provisioning, encrypted secret
+    setup, webhook registration, and activation remain incomplete.
 13. **Paper observation**
     Run without money, preserve every result, change rules only through a new
     version backed by evidence.

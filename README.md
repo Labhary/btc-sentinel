@@ -16,9 +16,9 @@ market data and rules, not from a language model.
 > evaluation. No representative historical dataset has been evaluated, so the
 > strict win-rate objective above 60% at 2R or better remains unproven.
 > Phase 12 deployment boundaries, deterministic orchestration core, typed D1
-> repository adapter, and atomic signal/outbox commit are implemented and remain
-> hard-disabled. Executable job assembly, representative backtest validation,
-> resource provisioning, preview verification, and deployment are not complete.
+> repository adapter, atomic signal/outbox commit, and executable GitHub Actions
+> job assembly are implemented and remain hard-disabled. Representative backtest
+> validation, resource provisioning, preview verification, and deployment are not complete.
 > This must not yet be treated as a live trading tool.
 
 ## Non-negotiable behavior
@@ -101,8 +101,8 @@ npm run typecheck
 npm test
 ```
 
-Deployment stays intentionally disabled until runtime assembly and every
-readiness check are complete. The Worker currently supports `/start`, `/help`,
+Deployment stays intentionally disabled until historical validation and every
+preview-readiness check are complete. The Worker currently supports `/start`, `/help`,
 `/status`, `/pause`, and `/resume` for one configured owner in a private chat.
 
 ## Secrets

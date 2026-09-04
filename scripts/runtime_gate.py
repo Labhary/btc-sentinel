@@ -13,8 +13,8 @@ def main() -> int:
         print("Paper engine is disabled; readiness checks only.")
         return 0
     raise SystemExit(
-        "Activation refused: executable job assembly, representative backtest validation, "
-        "preview verification, and activation review are not complete."
+        "Activation refused: representative backtest validation, preview verification, "
+        "and activation review are not complete."
     )
 
 
