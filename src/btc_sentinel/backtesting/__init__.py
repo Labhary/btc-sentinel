@@ -24,6 +24,11 @@ from btc_sentinel.backtesting.models import (
     WalkForwardFold,
     WalkForwardPolicy,
 )
+from btc_sentinel.backtesting.replay import (
+    HistoricalImportSummary,
+    HistoricalMarketView,
+    HistoricalReplayStore,
+)
 from btc_sentinel.backtesting.simulator import simulate_fixed_case, simulate_managed_case
 
 __all__ = [
@@ -41,6 +46,9 @@ __all__ = [
     "HistoricalDatasetLoader",
     "HistoricalDatasetManifest",
     "HistoricalDatasetSummary",
+    "HistoricalImportSummary",
+    "HistoricalMarketView",
+    "HistoricalReplayStore",
     "HistoricalSignalCase",
     "SensitivityResult",
     "TimestampUnit",

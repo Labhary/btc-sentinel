@@ -47,9 +47,30 @@ Binance documents microsecond Spot timestamps from 2025-01-01 onward; the
 validator never guesses the unit.
 
 A successful preflight reports `performance_verdict: NOT_RUN`. Data integrity
-is not strategy evidence. Multi-timeframe candidate replay, point-in-time news
-coverage, walk-forward evaluation, and the policy gates below must still run
-before any performance conclusion is possible.
+is not strategy evidence.
+
+## Point-in-time candle index
+
+Version `0.12.5` streams a validated manifest into a disk-backed SQLite replay
+index. It preserves the source one-minute candles and creates exact completed
+15-minute, one-hour, four-hour, daily, weekly, and monthly Spot views. Weeks
+start Monday at 00:00 UTC; months start on their first calendar day at 00:00
+UTC. An aggregate is discarded unless the source covers both the exact start
+and exact end of that interval, so partial archive boundaries cannot be
+mistaken for complete candles.
+
+Every query is evaluated at an explicit historical `as_of` time and returns
+only candles whose close is strictly earlier. Exhaustive candidate times come
+from completed 15-minute boundaries. Imports are transactional: a late hash,
+continuity, coverage, or row failure rolls back every inserted candle and all
+metadata.
+
+This index supplies historical Spot candle views only. It does not invent
+unavailable point-in-time order books, derivatives history, news, or macro
+events, and it has not yet executed the strategy or produced a performance
+verdict. Point-in-time news coverage, full signal/lifecycle replay,
+walk-forward evaluation, and the policy gates below must still run before any
+performance conclusion is possible.
 
 ## Conservative simulation
 

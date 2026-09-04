@@ -34,9 +34,11 @@ add files without activating production schedules.
     walk-forward evaluation, sensitivity, and stability gates. The framework is
     complete. The first Phase 12 validation increment adds streaming, immutable,
     checksum-bound Binance Vision one-minute archive preflight with explicit
-    millisecond/microsecond handling. Multi-timeframe exhaustive replay and a
-    representative historical verdict are still required before any
-    performance claim.
+    millisecond/microsecond handling. A disk-backed point-in-time index now
+    creates complete-only 15m through monthly Spot views and exhaustive 15m
+    candidate boundaries without future leakage. Full signal/lifecycle replay,
+    point-in-time news coverage, and a representative historical verdict are
+    still required before any performance claim.
 12. **Free deployment — in progress, inactive**
     D1 runtime-boundary migration, signed bootstrap/health API, idempotent
     cron-to-workflow dispatch, deterministic orchestration core, typed runtime
