@@ -49,6 +49,25 @@ validator never guesses the unit.
 A successful preflight reports `performance_verdict: NOT_RUN`. Data integrity
 is not strategy evidence.
 
+Version `0.12.9` can create this market-data input directly from the fixed
+official monthly archive path. The end month is exclusive, the output directory
+must not already exist, and the command downloads no private or authenticated
+data:
+
+```bash
+btc-sentinel-fetch-history \
+  2022-01 \
+  2026-01 \
+  ./btc-history-2022-2025 \
+  --dataset-id binance-vision-btcusdt-2022-2025-v1
+```
+
+Downloads stream to partial files under a byte limit, reject redirects, and use
+bounded retries. The manifest is published only after the complete downloaded
+range passes the same checksum, ZIP, row, timestamp, and continuity validator.
+Interrupted or invalid builds never produce a final manifest and never
+overwrite an existing dataset directory.
+
 ## Point-in-time candle index
 
 Version `0.12.5` streams a validated manifest into a disk-backed SQLite replay

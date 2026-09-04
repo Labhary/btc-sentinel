@@ -1,5 +1,11 @@
 """Conservative Phase 11 simulation and walk-forward evaluation."""
 
+from btc_sentinel.backtesting.archive_fetch import (
+    ArchiveDownload,
+    BinanceVisionArchiveBuilder,
+    HistoricalArchiveBuild,
+    UrllibArchiveDownloader,
+)
 from btc_sentinel.backtesting.dataset import (
     ArchiveSpec,
     HistoricalDataError,
@@ -44,6 +50,7 @@ from btc_sentinel.backtesting.risk_history import (
 from btc_sentinel.backtesting.simulator import simulate_fixed_case, simulate_managed_case
 
 __all__ = [
+    "ArchiveDownload",
     "ArchiveSpec",
     "BacktestComparisonReport",
     "BacktestEngine",
@@ -52,8 +59,10 @@ __all__ = [
     "BacktestRunSpec",
     "BacktestTrade",
     "BacktestVerdict",
+    "BinanceVisionArchiveBuilder",
     "CostStressResult",
     "FailClosedHistoricalRiskProvider",
+    "HistoricalArchiveBuild",
     "HistoricalDataError",
     "HistoricalDataset",
     "HistoricalDatasetLoader",
@@ -71,6 +80,7 @@ __all__ = [
     "HistoricalSignalCase",
     "SensitivityResult",
     "TimestampUnit",
+    "UrllibArchiveDownloader",
     "WalkForwardFold",
     "WalkForwardPolicy",
     "parse_manifest",

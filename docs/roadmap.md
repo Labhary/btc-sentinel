@@ -42,8 +42,10 @@ add files without activating production schedules.
     checksum-bound 15-minute news/macro risk timeline now rejects future
     evidence and required-source gaps that do not block. The executable replay
     command now joins immutable market and risk manifests through separate
-    fixed/managed verdicts. Representative source archives, timeline derivation,
-    and a historical verdict are still required before any performance claim.
+    fixed/managed verdicts. The public monthly Binance Vision archive builder
+    now creates and validates the market manifest without credentials.
+    Representative news/macro source archives, timeline derivation, and a
+    historical verdict are still required before any performance claim.
 12. **Free deployment — in progress, inactive**
     D1 runtime-boundary migration, signed bootstrap/health API, idempotent
     cron-to-workflow dispatch, deterministic orchestration core, typed runtime
