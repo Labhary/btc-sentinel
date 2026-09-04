@@ -70,9 +70,10 @@ workflow. No Binance key exists or is required.
 
 These steps are intentionally **not performed by this pull request**:
 
-1. Run a representative exhaustive historical backtest. Treat a failed or
+1. Validate the complete immutable Binance Vision archive manifest, then run a
+   representative exhaustive historical backtest. Treat a failed or
    inconclusive result as a stop condition, not as permission to tune the same
-   test window.
+   test window. A successful archive preflight is not a performance verdict.
 2. Create a D1 database and replace the placeholder database ID in a private
    `worker/wrangler.toml` file.
 3. Apply migrations 1–4 to a preview D1 database and verify replayability.
