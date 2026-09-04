@@ -336,6 +336,6 @@ class NewsRiskEngine:
                 end = event.starts_at + self.policy.high_event_post
             else:
                 continue
-            if start <= now <= end:
+            if start <= now < end:
                 active.append((event, end))
         return active

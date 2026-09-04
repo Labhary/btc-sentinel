@@ -2,6 +2,22 @@
 
 All notable project changes are recorded here.
 
+## 0.12.10 — 2026-09-04
+
+- Added a strict normalized evidence-manifest loader for required Federal
+  Reserve, SEC, and BLS historical sources, with per-source coverage, record
+  counts, hashes, safe paths, and fixed source identities.
+- Rejected pre-publication news observations, off-domain official links,
+  duplicate records, source-kind contradictions, missing required coverage,
+  checksum changes, and evidence observed outside the decision range.
+- Added deterministic 15-minute risk-timeline derivation using the unchanged
+  Phase 5 risk policy and bound the evidence-manifest hash into the derivation
+  identity.
+- Corrected scheduled risk windows to use an exclusive end, preventing an
+  expired block from reporting `block_until` equal to its evaluation time.
+- Added `btc-sentinel-build-risk-history`; generated timelines are fully
+  revalidated and still report `performance_verdict: NOT_RUN` until replayed.
+
 ## 0.12.9 — 2026-09-04
 
 - Added bounded public-only acquisition of monthly Binance Vision Spot
