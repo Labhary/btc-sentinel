@@ -2,6 +2,18 @@
 
 All notable project changes are recorded here.
 
+## 0.12.9 — 2026-09-04
+
+- Added bounded public-only acquisition of monthly Binance Vision Spot
+  BTCUSDT one-minute archives with a fixed HTTPS host and path.
+- Added streamed downloads, redirect rejection, bounded retries, byte caps,
+  partial-file cleanup, exact UTC calendar ranges, and non-overwriting output.
+- Added automatic immutable manifest construction followed by the existing
+  strict ZIP, checksum, row, continuity, and timestamp-unit validation before
+  the manifest becomes final.
+- Added `btc-sentinel-fetch-history`; it requires no Binance account or API key
+  and reports `performance_verdict: NOT_RUN`.
+
 ## 0.12.8 — 2026-09-04
 
 - Added `btc-sentinel-run-history`, the fail-closed executable assembly for

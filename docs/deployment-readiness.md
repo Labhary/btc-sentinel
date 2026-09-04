@@ -16,8 +16,9 @@ streaming signal/lifecycle runner. The runner blocks when historical news/macro
 coverage is missing. A checksum-bound continuous risk-timeline store now
 enforces exact-time evidence and required-source failures, but no representative
 source archive has been derived or replayed. The complete historical command is
-wired, but has no bundled inputs. This is engineering readiness, not performance
-evidence.
+wired, and the public monthly Binance Vision market archive can now be acquired
+without credentials, but no representative news/macro input is bundled. This is
+engineering readiness, not performance evidence.
 
 Deploying the current branch would therefore be premature. A green CI run
 proves configuration and boundary behavior; it does not prove a running bot.
