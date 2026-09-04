@@ -226,6 +226,37 @@ class FixedSimulatorTests(TestCase):
 
 
 class WalkForwardTests(TestCase):
+    def test_fixed_virtual_tracks_may_overlap_but_managed_tracks_may_not(self) -> None:
+        first = trade(0)
+        overlapping = replace(trade(1), created_at=first.created_at + timedelta(minutes=30))
+        fixed = BacktestEngine(policy()).evaluate((first, overlapping), NOW, run_spec())
+        self.assertIs(fixed.verdict, BacktestVerdict.INCONCLUSIVE)
+
+        managed = tuple(
+            replace(item, variant=OutcomeVariant.MANAGED) for item in (first, overlapping)
+        )
+        with self.assertRaisesRegex(DomainValidationError, "Managed backtest trades overlap"):
+            BacktestEngine(policy(), OutcomeVariant.MANAGED).evaluate(managed, NOW, run_spec())
+
+    def test_training_outcomes_resolved_after_test_start_are_not_future_knowledge(self) -> None:
+        trades = tuple(
+            replace(item, terminal_at=item.created_at + timedelta(days=6))
+            for item in (trade(index) for index in range(13))
+        )
+        report = BacktestEngine(policy()).evaluate(trades, NOW, run_spec())
+        self.assertIs(report.verdict, BacktestVerdict.INCONCLUSIVE)
+        self.assertEqual(report.folds[0].training_resolved, 0)
+        self.assertIn("insufficient resolved training", " ".join(report.reasons))
+
+    def test_streamed_variant_comparison_requires_the_same_signal_universe(self) -> None:
+        with self.assertRaisesRegex(DomainValidationError, "universes do not match"):
+            BacktestEngine(policy()).compare_trades(
+                (trade(0),),
+                (replace(trade(1), variant=OutcomeVariant.MANAGED),),
+                NOW,
+                run_spec(),
+            )
+
     def test_all_win_out_of_sample_can_pass_only_with_confident_lower_bound(self) -> None:
         report = BacktestEngine(policy()).evaluate(
             tuple(trade(index) for index in range(13)), NOW, run_spec()
@@ -274,7 +305,11 @@ class WalkForwardTests(TestCase):
         first = trade(0)
         overlap = replace(trade(1), created_at=first.created_at + timedelta(minutes=30))
         with self.assertRaisesRegex(DomainValidationError, "overlap"):
-            BacktestEngine(policy()).evaluate((first, overlap), NOW, run_spec())
+            BacktestEngine(policy(), OutcomeVariant.MANAGED).evaluate(
+                tuple(replace(item, variant=OutcomeVariant.MANAGED) for item in (first, overlap)),
+                NOW,
+                run_spec(),
+            )
         with self.assertRaisesRegex(DomainValidationError, "unique"):
             BacktestEngine(policy()).evaluate(
                 (first, replace(trade(1), signal_id=first.signal_id)), NOW, run_spec()

@@ -84,9 +84,9 @@ class BacktestEngine:
         )
         trades = tuple(simulator(case) for case in ordered)
         for previous, current in pairwise(trades):
-            if current.created_at < previous.terminal_at:
+            if self.variant is OutcomeVariant.MANAGED and current.created_at < previous.terminal_at:
                 raise DomainValidationError(
-                    "Historical cases overlap and violate one-active-trade policy"
+                    "Managed historical cases overlap and violate one-active-trade policy"
                 )
         return trades
 
@@ -117,8 +117,10 @@ class BacktestEngine:
             raise DomainValidationError("Backtest mixes undeclared strategy versions")
 
         for previous, current in pairwise(ordered):
-            if current.created_at < previous.terminal_at:
-                raise DomainValidationError("Backtest trades overlap one-active-trade policy")
+            if self.variant is OutcomeVariant.MANAGED and current.created_at < previous.terminal_at:
+                raise DomainValidationError(
+                    "Managed backtest trades overlap one-active-trade policy"
+                )
 
         folds, selected_oos, all_oos = self._walk_forward(ordered, now)
         metrics = _statistics(selected_oos, now, self.variant)
@@ -176,6 +178,10 @@ class BacktestEngine:
                 test_start - policy.purge_size - policy.train_size : test_start - policy.purge_size
             ]
             test = trades[test_start : test_start + policy.test_size]
+            training_cutoff = test[0].created_at
+            available_train = tuple(
+                trade for trade in train if trade.terminal_at <= training_cutoff
+            )
             threshold = policy.primary_score_threshold
             test_selected = _eligible(test, threshold)
             test_stats = _statistics(test_selected, now, self.variant)
@@ -183,11 +189,14 @@ class BacktestEngine:
                 WalkForwardFold(
                     fold_number=fold_number,
                     train_start=train[0].created_at,
-                    train_end=train[-1].terminal_at,
+                    train_end=max(
+                        (trade.terminal_at for trade in available_train),
+                        default=train[0].created_at,
+                    ),
                     test_start=test[0].created_at,
                     test_end=test[-1].terminal_at,
                     selected_threshold=threshold,
-                    training_resolved=len(_eligible(train, threshold)),
+                    training_resolved=len(_eligible(available_train, threshold)),
                     testing_resolved=test_stats.resolved,
                     testing_net_r=test_stats.net_r,
                 )
@@ -291,6 +300,23 @@ class BacktestEngine:
         managed_engine = BacktestEngine(self.policy, OutcomeVariant.MANAGED)
         fixed_trades = fixed_engine.simulate(cases)
         managed_trades = managed_engine.simulate(cases)
+        return self.compare_trades(fixed_trades, managed_trades, generated_at, run_spec)
+
+    def compare_trades(
+        self,
+        fixed_trades: tuple[BacktestTrade, ...],
+        managed_trades: tuple[BacktestTrade, ...],
+        generated_at: datetime,
+        run_spec: BacktestRunSpec,
+    ) -> BacktestComparisonReport:
+        """Evaluate already-streamed fixed and managed tracks from one signal universe."""
+
+        if tuple(trade.signal_id for trade in fixed_trades) != tuple(
+            trade.signal_id for trade in managed_trades
+        ):
+            raise DomainValidationError("Fixed and managed backtest universes do not match")
+        fixed_engine = BacktestEngine(self.policy, OutcomeVariant.FIXED)
+        managed_engine = BacktestEngine(self.policy, OutcomeVariant.MANAGED)
         fixed_report = fixed_engine.evaluate(fixed_trades, generated_at, run_spec)
         managed_report = managed_engine.evaluate(managed_trades, generated_at, run_spec)
 

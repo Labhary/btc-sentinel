@@ -249,3 +249,19 @@ class HistoricalReplayTests(TestCase):
         self.assertIs(view.series_for(MarketVenue.SPOT, MarketInterval.FIFTEEN_MINUTES), series)
         with self.assertRaisesRegex(DomainValidationError, "FUTURES"):
             view.series_for(MarketVenue.FUTURES, MarketInterval.FIFTEEN_MINUTES)
+
+    def test_streaming_minutes_are_continuous_and_store_coverage_is_immutable(self) -> None:
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        path = self._manifest(start, list(range(15)))
+        with HistoricalReplayStore(self.root / "replay.sqlite3") as store:
+            store.import_manifest(path)
+            candles = tuple(
+                store.iter_candles(
+                    MarketInterval.ONE_MINUTE,
+                    start,
+                    start + timedelta(minutes=15),
+                )
+            )
+            coverage = store.coverage()
+        self.assertEqual(len(candles), 15)
+        self.assertEqual(coverage, (start, start + timedelta(minutes=15)))

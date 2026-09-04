@@ -65,12 +65,81 @@ from completed 15-minute boundaries. Imports are transactional: a late hash,
 continuity, coverage, or row failure rolls back every inserted candle and all
 metadata.
 
-This index supplies historical Spot candle views only. It does not invent
+The index supplies historical Spot candle views only. It does not invent
 unavailable point-in-time order books, derivatives history, news, or macro
-events, and it has not yet executed the strategy or produced a performance
-verdict. Point-in-time news coverage, full signal/lifecycle replay,
-walk-forward evaluation, and the policy gates below must still run before any
-performance conclusion is possible.
+events. The runner below consumes those views, but verified point-in-time risk
+coverage and the policy gates must still pass before any performance conclusion
+is possible.
+
+## Exhaustive signal and lifecycle runner
+
+Version `0.12.6` evaluates the Phase 6 signal engine at every completed
+15-minute boundary in a declared replay-store range. Each decision receives
+only its point-in-time candle view and a risk assessment evaluated at that exact
+instant. News published later is rejected. When no historical news/macro
+provider is supplied, the built-in provider returns `BLOCK`; it never silently
+substitutes `CLEAR` or permits a performance verdict.
+
+Created signals feed two incremental one-minute simulations: the unchanged
+fixed track and the managed break-even track. Candles stream from SQLite, so a
+long-lived trade does not require loading the remaining multi-year dataset into
+memory. New setups remain blocked while the managed track is active and during
+the four-hour cooldown. An older fixed virtual comparison may remain open, as
+documented by the lifecycle policy, without blocking a later managed setup.
+
+Eligible runs connect directly to the existing purged walk-forward comparison.
+A fixed-track result that resolves after a test window begins is excluded from
+that fold's training evidence, preventing delayed virtual outcomes from leaking
+future knowledge. The runner is performance-ineligible until a verified
+point-in-time risk provider is supplied; therefore no representative verdict
+has been produced by this version.
+
+## Point-in-time news and macro timeline
+
+Version `0.12.7` adds the disk-backed risk-provider format required by the
+runner. Its manifest fixes an exclusive UTC range, one point at every 15-minute
+boundary, the derivation version, required official-source coverage, explicit
+exclusions, a safe JSONL path, exact row count, and SHA-256. The current
+required catalog is the Federal Reserve monetary-policy feed, SEC press
+releases, and the BLS release calendar.
+
+Every point records its decision, reasons, coverage issues, cited source IDs,
+and the observation times of its evidence. Evidence observed after the
+decision is rejected. A required coverage gap must produce `BLOCK`; it cannot
+be encoded as `CLEAR` or `CAUTION`. Imports retain the audit fields in SQLite
+and roll back completely on any late validation or checksum failure.
+
+Validate a prepared timeline without running the strategy:
+
+```bash
+btc-sentinel-validate-risk-history path/to/risk-manifest.json
+```
+
+This format proves internal continuity, immutability, and time-causality of the
+supplied records. It does not prove that a third party created truthful source
+archives, and the repository does not bundle a representative timeline. Source
+archive acquisition and provenance review are therefore still required before
+an eligible performance run.
+
+## Executable historical run
+
+Version `0.12.8` joins both immutable inputs to the exhaustive runner and the
+walk-forward evaluator:
+
+```bash
+btc-sentinel-run-history \
+  path/to/market-manifest.json \
+  path/to/risk-manifest.json \
+  2022-01-01T00:00:00Z \
+  2026-01-01T00:00:00Z
+```
+
+The command imports both inputs transactionally into temporary disk-backed
+indexes, checks risk coverage contains the requested period, evaluates every
+completed 15-minute candidate boundary, and emits one JSON record with separate
+fixed and managed verdicts. `--work-directory` may retain the indexes for audit,
+but existing database paths are never overwritten. A successful command means
+the run completed; the JSON verdict may still be `FAILED` or `INCONCLUSIVE`.
 
 ## Conservative simulation
 

@@ -11,6 +11,12 @@ from btc_sentinel.backtesting.dataset import (
     parse_manifest,
 )
 from btc_sentinel.backtesting.engine import BacktestEngine
+from btc_sentinel.backtesting.historical_runner import (
+    FailClosedHistoricalRiskProvider,
+    HistoricalReplayRun,
+    HistoricalReplayRunner,
+    HistoricalRiskProvider,
+)
 from btc_sentinel.backtesting.models import (
     BacktestComparisonReport,
     BacktestOutcome,
@@ -29,6 +35,12 @@ from btc_sentinel.backtesting.replay import (
     HistoricalMarketView,
     HistoricalReplayStore,
 )
+from btc_sentinel.backtesting.risk_history import (
+    HistoricalRiskImportSummary,
+    HistoricalRiskManifest,
+    HistoricalRiskStore,
+    parse_risk_manifest,
+)
 from btc_sentinel.backtesting.simulator import simulate_fixed_case, simulate_managed_case
 
 __all__ = [
@@ -41,6 +53,7 @@ __all__ = [
     "BacktestTrade",
     "BacktestVerdict",
     "CostStressResult",
+    "FailClosedHistoricalRiskProvider",
     "HistoricalDataError",
     "HistoricalDataset",
     "HistoricalDatasetLoader",
@@ -48,13 +61,20 @@ __all__ = [
     "HistoricalDatasetSummary",
     "HistoricalImportSummary",
     "HistoricalMarketView",
+    "HistoricalReplayRun",
+    "HistoricalReplayRunner",
     "HistoricalReplayStore",
+    "HistoricalRiskImportSummary",
+    "HistoricalRiskManifest",
+    "HistoricalRiskProvider",
+    "HistoricalRiskStore",
     "HistoricalSignalCase",
     "SensitivityResult",
     "TimestampUnit",
     "WalkForwardFold",
     "WalkForwardPolicy",
     "parse_manifest",
+    "parse_risk_manifest",
     "simulate_fixed_case",
     "simulate_managed_case",
 ]
