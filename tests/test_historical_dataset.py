@@ -50,9 +50,7 @@ def archive_record(path: str, content: bytes, unit: str, start: datetime, rows: 
     filename = Path(path).name
     return {
         "path": path,
-        "source_url": (
-            "https://data.binance.vision/data/spot/daily/klines/BTCUSDT/1m/" + filename
-        ),
+        "source_url": ("https://data.binance.vision/data/spot/daily/klines/BTCUSDT/1m/" + filename),
         "sha256": hashlib.sha256(content).hexdigest(),
         "timestamp_unit": unit,
         "coverage_start": start.isoformat().replace("+00:00", "Z"),
@@ -148,15 +146,11 @@ class HistoricalDatasetTests(TestCase):
         with self.assertRaisesRegex(HistoricalDataError, "fixed Binance path"):
             HistoricalDatasetLoader().load(self.write_manifest(manifest([record])))
 
-        record = archive_record(
-            "archives/BTCUSDT-1m-day.zip", content, "microseconds", start, 1
-        )
+        record = archive_record("archives/BTCUSDT-1m-day.zip", content, "microseconds", start, 1)
         with self.assertRaisesRegex(HistoricalDataError, "timestamp unit contradicts"):
             HistoricalDatasetLoader().load(self.write_manifest(manifest([record])))
 
-        record = archive_record(
-            "archives/BTCUSDT-1m-day.zip", content, "milliseconds", start, 1
-        )
+        record = archive_record("archives/BTCUSDT-1m-day.zip", content, "milliseconds", start, 1)
         payload = manifest([record])
         payload["unexpected"] = True
         with self.assertRaisesRegex(HistoricalDataError, r"unknown=\['unexpected'\]"):
