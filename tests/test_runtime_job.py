@@ -78,7 +78,9 @@ class RuntimeJobTests(TestCase):
                 result = execute(
                     config,
                     clock=lambda: NOW,
-                    builder=lambda _config, _clock: StaticOrchestrator(status),
+                    builder=lambda _config, _clock, run_status=status: StaticOrchestrator(
+                        run_status
+                    ),
                 )
             self.assertEqual(result, expected)
             payload = json.loads(output.getvalue())
