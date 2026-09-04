@@ -140,6 +140,33 @@ archives, and the repository does not bundle a representative timeline. Source
 archive acquisition and provenance review are therefore still required before
 an eligible performance run.
 
+Version `0.12.10` defines the normalized evidence input used to build that
+timeline. The evidence manifest declares the same exact 15-minute UTC coverage
+for every included source. Each source record file has a safe JSONL path,
+SHA-256, and exact record count. Required coverage is fixed to Federal Reserve
+monetary releases, SEC press releases, and the BLS calendar. News records carry
+title, official-domain URL, publication time, and observation time; calendar
+records carry stable identity, supported release title, scheduled time,
+observation time, and optional official URL.
+
+The builder rejects news claimed to be observed before publication and never
+shows any record to an earlier decision. It binds the evidence-manifest hash
+into the derivation version, evaluates the unchanged Phase 5 policy at every
+boundary, and validates the completed output before publishing its manifest:
+
+```bash
+btc-sentinel-build-risk-history \
+  path/to/evidence-manifest.json \
+  ./derived-risk-history \
+  --dataset-id official-risk-2022-2025-v1
+```
+
+Normalized records and hashes make the derivation reproducible, but they do
+not authenticate who assembled the evidence. The source files and claimed
+coverage still require an independent provenance review; a fabricated input
+file can be internally consistent. This limitation is explicit and remains an
+activation blocker.
+
 ## Executable historical run
 
 Version `0.12.8` joins both immutable inputs to the exhaustive runner and the

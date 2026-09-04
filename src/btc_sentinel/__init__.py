@@ -1,3 +1,3 @@
 """BTC Sentinel core package."""
 
-__version__ = "0.12.9"
+__version__ = "0.12.10"

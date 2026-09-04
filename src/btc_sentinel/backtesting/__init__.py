@@ -41,6 +41,17 @@ from btc_sentinel.backtesting.replay import (
     HistoricalMarketView,
     HistoricalReplayStore,
 )
+from btc_sentinel.backtesting.risk_derivation import (
+    HistoricalRiskBuild,
+    HistoricalRiskTimelineBuilder,
+)
+from btc_sentinel.backtesting.risk_evidence import (
+    EvidenceSourceSpec,
+    HistoricalRiskEvidence,
+    HistoricalRiskEvidenceLoader,
+    ObservedNews,
+    ObservedScheduledEvent,
+)
 from btc_sentinel.backtesting.risk_history import (
     HistoricalRiskImportSummary,
     HistoricalRiskManifest,
@@ -61,6 +72,7 @@ __all__ = [
     "BacktestVerdict",
     "BinanceVisionArchiveBuilder",
     "CostStressResult",
+    "EvidenceSourceSpec",
     "FailClosedHistoricalRiskProvider",
     "HistoricalArchiveBuild",
     "HistoricalDataError",
@@ -73,11 +85,17 @@ __all__ = [
     "HistoricalReplayRun",
     "HistoricalReplayRunner",
     "HistoricalReplayStore",
+    "HistoricalRiskBuild",
+    "HistoricalRiskEvidence",
+    "HistoricalRiskEvidenceLoader",
     "HistoricalRiskImportSummary",
     "HistoricalRiskManifest",
     "HistoricalRiskProvider",
     "HistoricalRiskStore",
+    "HistoricalRiskTimelineBuilder",
     "HistoricalSignalCase",
+    "ObservedNews",
+    "ObservedScheduledEvent",
     "SensitivityResult",
     "TimestampUnit",
     "UrllibArchiveDownloader",

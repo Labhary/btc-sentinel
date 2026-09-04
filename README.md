@@ -102,6 +102,7 @@ PYTHONPATH=src python -m unittest discover -s tests -v
 btc-sentinel-validate-history path/to/manifest.json
 btc-sentinel-validate-risk-history path/to/risk-manifest.json
 btc-sentinel-fetch-history START_MONTH END_MONTH OUTPUT --dataset-id DATASET_ID
+btc-sentinel-build-risk-history EVIDENCE_MANIFEST OUTPUT --dataset-id DATASET_ID
 btc-sentinel-run-history market.json risk.json START_UTC END_UTC
 ```
 

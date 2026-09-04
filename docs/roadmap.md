@@ -43,9 +43,11 @@ add files without activating production schedules.
     evidence and required-source gaps that do not block. The executable replay
     command now joins immutable market and risk manifests through separate
     fixed/managed verdicts. The public monthly Binance Vision archive builder
-    now creates and validates the market manifest without credentials.
-    Representative news/macro source archives, timeline derivation, and a
-    historical verdict are still required before any performance claim.
+    now creates and validates the market manifest without credentials. A
+    checksum-bound official-source evidence format and deterministic risk
+    timeline derivation are also implemented. Representative evidence assembly,
+    provenance review, and a historical verdict are still required before any
+    performance claim.
 12. **Free deployment — in progress, inactive**
     D1 runtime-boundary migration, signed bootstrap/health API, idempotent
     cron-to-workflow dispatch, deterministic orchestration core, typed runtime

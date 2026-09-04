@@ -124,6 +124,18 @@ class NewsEngineTests(TestCase):
         self.assertIs(result.decision, RiskDecision.BLOCK)
         self.assertEqual(result.block_until, scheduled.starts_at + timedelta(minutes=45))
 
+        at_exclusive_end = NewsRiskEngine().evaluate(
+            NewsCollection(
+                scheduled.starts_at + timedelta(minutes=45),
+                (),
+                (scheduled,),
+                (),
+            ),
+            scheduled.starts_at + timedelta(minutes=45),
+        )
+        self.assertIs(at_exclusive_end.decision, RiskDecision.CLEAR)
+        self.assertIsNone(at_exclusive_end.block_until)
+
     def test_medium_scheduled_event_does_not_block(self) -> None:
         scheduled = ScheduledEvent(
             "jolts",
