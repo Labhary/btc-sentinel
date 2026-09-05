@@ -198,7 +198,9 @@ class HistoricalReplayTests(TestCase):
         self.assertEqual(len(advanced.candles), 2)
         self.assertIs(advanced.candles[0], first.candles[0])
 
-    def test_native_monthly_import_replaces_derived_months_atomically(self) -> None:
+    def test_native_monthly_import_overlays_its_range_and_preserves_later_derived_months(
+        self,
+    ) -> None:
         start = datetime(2024, 1, 1, tzinfo=UTC)
         path = self._manifest(start, list(range(15)))
         monthly = Candle(
@@ -230,14 +232,62 @@ class HistoricalReplayTests(TestCase):
 
         with HistoricalReplayStore(self.root / "replay.sqlite3") as store:
             store.import_manifest(path)
+            later = Candle(
+                venue=MarketVenue.SPOT,
+                interval=MarketInterval.ONE_MONTH,
+                open_time=datetime(2024, 2, 1, tzinfo=UTC),
+                close_time=MarketInterval.ONE_MONTH.expected_close_time(
+                    datetime(2024, 2, 1, tzinfo=UTC)
+                ),
+                open=Decimal(110),
+                high=Decimal(130),
+                low=Decimal(100),
+                close=Decimal(120),
+                volume=Decimal(20),
+                quote_volume=Decimal(2000),
+                trade_count=6,
+                taker_buy_base_volume=Decimal(7),
+                taker_buy_quote_volume=Decimal(700),
+            )
+            store._insert(later)
+            store.connection.commit()
             summary = store.import_native_monthly_manifest(self.root / "monthly.json", Loader())
             series = store.series_at(
                 MarketInterval.ONE_MONTH,
-                datetime(2024, 2, 1, tzinfo=UTC),
+                datetime(2024, 3, 1, tzinfo=UTC),
             )
+            native_end = store.metadata("native_monthly_coverage_end")
 
         self.assertEqual(summary.dataset_id, "native-monthly-test-v1")
-        self.assertEqual(series.candles, (monthly,))
+        self.assertEqual(series.candles, (monthly, later))
+        self.assertEqual(native_end, "2024-02-01T00:00:00+00:00")
+
+    def test_native_monthly_import_rejects_a_late_non_warmup_range_atomically(self) -> None:
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        path = self._manifest(start, list(range(15)))
+
+        class LateLoader:
+            def visit(self, _path, _visitor):
+                return NativeMonthlySummary(
+                    "late-native-monthly-test-v1",
+                    "b" * 64,
+                    datetime(2024, 2, 1, tzinfo=UTC),
+                    datetime(2024, 3, 1, tzinfo=UTC),
+                    1,
+                )
+
+        with HistoricalReplayStore(self.root / "replay.sqlite3") as store:
+            store.import_manifest(path)
+            before = store.connection.execute("SELECT COUNT(*) FROM replay_candles").fetchone()
+            with self.assertRaisesRegex(DomainValidationError, "warm up and overlap"):
+                store.import_native_monthly_manifest(self.root / "monthly.json", LateLoader())
+            after = store.connection.execute("SELECT COUNT(*) FROM replay_candles").fetchone()
+            metadata = store.connection.execute(
+                "SELECT COUNT(*) FROM replay_metadata WHERE key LIKE 'native_monthly_%'"
+            ).fetchone()
+
+        self.assertEqual(after, before)
+        self.assertEqual(metadata, (0,))
 
     def test_calendar_buckets_use_monday_and_month_start_utc(self) -> None:
         value = datetime(2024, 2, 29, 23, 59, tzinfo=UTC)

@@ -41,9 +41,9 @@ jobs:
       - name: Acquire official native monthly warm-up
         run: >-
           btc-sentinel-fetch-monthly-history
-          2017-08 2026-01
-          artifacts/monthly-2017-2025
-          --dataset-id binance-vision-btcusdt-native-monthly-2017-2025-v1
+          2017-08 2024-03
+          artifacts/monthly-2017-2024-02
+          --dataset-id binance-vision-btcusdt-native-monthly-2017-2024-02-v2
 
       - name: Acquire official risk evidence
         run: >-
@@ -67,7 +67,7 @@ jobs:
             artifacts/risk-history-2022-2025/risk-manifest.json \
             2022-01-01T00:00:00Z \
             2026-01-01T00:00:00Z \
-            --monthly-manifest artifacts/monthly-2017-2025/monthly-manifest.json \
+            --monthly-manifest artifacts/monthly-2017-2024-02/monthly-manifest.json \
             | tee artifacts/representative-report.json
 
       - name: Retain immutable evidence and report

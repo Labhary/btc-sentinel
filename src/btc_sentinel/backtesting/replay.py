@@ -280,23 +280,35 @@ class HistoricalReplayStore:
         ).fetchone():
             raise DomainValidationError("Native monthly replay history is already initialized")
         source = loader or NativeMonthlyLoader()
-        base_start, base_end = self.coverage()
+        base_start, _base_end = self.coverage()
         try:
             self.connection.execute("BEGIN")
-            self.connection.execute(
-                "DELETE FROM replay_candles WHERE interval = ?",
-                (MarketInterval.ONE_MONTH.value,),
-            )
-            summary = source.visit(manifest_path, self._insert)
-            if summary.coverage_start > base_start or summary.coverage_end < base_end:
+            native_candles: list[Candle] = []
+            summary = source.visit(manifest_path, native_candles.append)
+            if summary.coverage_start > base_start or summary.coverage_end <= base_start:
                 raise DomainValidationError(
-                    "Native monthly coverage must contain one-minute replay coverage"
+                    "Native monthly coverage must warm up and overlap the one-minute replay"
                 )
+            self.connection.execute(
+                """
+                DELETE FROM replay_candles
+                WHERE interval = ? AND open_time_ms >= ? AND open_time_ms < ?
+                """,
+                (
+                    MarketInterval.ONE_MONTH.value,
+                    _epoch_milliseconds(summary.coverage_start),
+                    _epoch_milliseconds(summary.coverage_end),
+                ),
+            )
+            for candle in native_candles:
+                self._insert(candle)
             self.connection.executemany(
                 "INSERT INTO replay_metadata(key, value) VALUES (?, ?)",
                 (
                     ("native_monthly_dataset_id", summary.dataset_id),
                     ("native_monthly_manifest_sha256", summary.manifest_sha256),
+                    ("native_monthly_coverage_start", summary.coverage_start.isoformat()),
+                    ("native_monthly_coverage_end", summary.coverage_end.isoformat()),
                 ),
             )
             self.connection.commit()
@@ -339,6 +351,8 @@ class HistoricalReplayStore:
             "coverage_end",
             "native_monthly_dataset_id",
             "native_monthly_manifest_sha256",
+            "native_monthly_coverage_start",
+            "native_monthly_coverage_end",
         }:
             raise DomainValidationError("Unknown historical replay metadata key")
         row = self.connection.execute(

@@ -81,7 +81,7 @@ checksum-bound ledger. The suspect row and the declared absent interval are
 excluded from analysis. Any undeclared, altered, overlapping, late, or
 misaligned timestamp still rejects the dataset.
 
-Version `0.12.13` adds a separate official native-monthly supplement. Binance
+Version `0.12.14` adds a separate official native-monthly supplement. Binance
 names this file interval `1mo`; the runtime still maps it to the analysis
 interval `1M`. This avoids synthesizing a monthly candle across missing
 one-minute execution data. Build sufficient monthly warm-up from the beginning
@@ -90,15 +90,22 @@ of BTCUSDT archive history:
 ```bash
 btc-sentinel-fetch-monthly-history \
   2017-08 \
-  2026-01 \
-  ./btc-native-monthly-2017-2025 \
-  --dataset-id binance-vision-btcusdt-native-monthly-2017-2025-v1
+  2024-03 \
+  ./btc-native-monthly-2017-2024-02 \
+  --dataset-id binance-vision-btcusdt-native-monthly-2017-2024-02-v2
 ```
 
 Each ZIP must contain exactly one exact calendar-month candle. Fixed host/path,
 timestamp-unit, ZIP, row-shape, value, coverage, and SHA-256 checks apply before
-the native candles transactionally replace only the derived `1M` rows. Native
-coverage must contain the complete one-minute replay coverage.
+the native candles transactionally replace only derived `1M` rows inside their
+declared range. Binance's official BTCUSDT `1mo` monthly archive ends at
+February 2024, so the representative reconstruction uses native candles
+through that boundary and retains complete, gap-checked one-minute-derived
+monthly candles from March 2024 onward. Native coverage must start no later than
+the one-minute input and overlap it. Candles beyond the one-minute replay
+coverage are unreachable because every run is bounded by that replay's
+exclusive end. A missing month on either side remains a real continuity break;
+the importer never fills one.
 
 ## Point-in-time candle index
 
