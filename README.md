@@ -28,7 +28,10 @@ market data and rules, not from a language model.
 > gaps that do not block. An executable command now joins both immutable inputs
 > through exhaustive replay and separate fixed/managed verdicts. No
 > representative market/risk dataset has been run, so the strategy has not
-> passed a backtest.
+> passed a backtest. A conservative official-archive builder now retains and
+> hashes the raw Federal Reserve, SEC, and BLS pages, binds every normalized
+> risk record to its provenance, and blocks intervals whose historical schedule
+> availability cannot be established.
 > This must not yet be treated as a live trading tool.
 
 ## Non-negotiable behavior

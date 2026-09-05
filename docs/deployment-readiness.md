@@ -15,11 +15,14 @@ disk-backed, point-in-time multi-timeframe Spot candle index and an exhaustive
 streaming signal/lifecycle runner. The runner blocks when historical news/macro
 coverage is missing. A checksum-bound continuous risk-timeline store now
 enforces exact-time evidence and required-source failures, but no representative
-source archive has been derived or replayed. The complete historical command is
+representative source archive has been replayed. The complete historical command is
 wired, and the public monthly Binance Vision market archive can now be acquired
 without credentials. The historical risk timeline can now be derived from
-checksum-bound normalized official-source evidence, but no representative
-evidence set is bundled or independently reviewed. This is engineering
+checksum-bound normalized official-source evidence. The conservative archive
+builder now downloads and retains the raw Federal Reserve, SEC, and BLS pages,
+binds normalized records to those hashes, and turns uncertain BLS schedule
+availability into blocking gaps. A live 2024 smoke reconstruction passed, but
+the predeclared 2022–2025 representative replay has not run. This is engineering
 readiness, not performance evidence.
 
 Deploying the current branch would therefore be premature. A green CI run

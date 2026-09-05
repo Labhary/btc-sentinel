@@ -19,7 +19,7 @@ from btc_sentinel.backtesting.risk_evidence import (
 )
 from btc_sentinel.backtesting.risk_history import HistoricalRiskStore
 from btc_sentinel.news.engine import NewsRiskEngine, NewsRiskPolicy
-from btc_sentinel.news.models import NewsCollection
+from btc_sentinel.news.models import CoverageIssue, NewsCollection
 from btc_sentinel.news.sources import GDELT_DISCOVERY, OFFICIAL_FEEDS
 
 _DATASET_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}")
@@ -68,12 +68,17 @@ def _point(
 ) -> dict[str, object]:
     news = _visible_news(evidence, candidate, engine.policy)
     scheduled = _visible_scheduled(evidence, candidate, engine.policy)
+    issues = tuple(
+        CoverageIssue(gap.source_id, gap.detail, True)
+        for gap in evidence.coverage_gaps
+        if gap.start <= candidate < gap.end
+    )
     assessment = engine.evaluate(
         NewsCollection(
             candidate,
             tuple(record.item for record in news),
             tuple(record.event for record in scheduled),
-            (),
+            issues,
         ),
         candidate,
     )
@@ -85,7 +90,14 @@ def _point(
             None if assessment.block_until is None else assessment.block_until.isoformat()
         ),
         "reasons": list(assessment.reasons),
-        "coverage_issues": [],
+        "coverage_issues": [
+            {
+                "source_id": issue.source_id,
+                "detail": issue.detail,
+                "required": issue.required,
+            }
+            for issue in assessment.coverage_issues
+        ],
         "source_ids": sorted(
             {
                 record.item.source.source_id

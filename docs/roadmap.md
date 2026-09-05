@@ -44,10 +44,12 @@ add files without activating production schedules.
     command now joins immutable market and risk manifests through separate
     fixed/managed verdicts. The public monthly Binance Vision archive builder
     now creates and validates the market manifest without credentials. A
-    checksum-bound official-source evidence format and deterministic risk
-    timeline derivation are also implemented. Representative evidence assembly,
-    provenance review, and a historical verdict are still required before any
-    performance claim.
+    checksum-bound official-source evidence format, deterministic risk timeline
+    derivation, and conservative raw official-archive reconstruction are also
+    implemented. Present-day Fed/SEC/BLS pages are retained and hashed; records
+    cite their raw artifacts, and uncertain BLS availability becomes a required
+    blocking gap. The predeclared representative acquisition and historical
+    verdict are still required before any performance claim.
 12. **Free deployment — in progress, inactive**
     D1 runtime-boundary migration, signed bootstrap/health API, idempotent
     cron-to-workflow dispatch, deterministic orchestration core, typed runtime
