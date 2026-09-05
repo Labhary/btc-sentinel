@@ -44,6 +44,9 @@ add files without activating production schedules.
     command now joins immutable market and risk manifests through separate
     fixed/managed verdicts. The public monthly Binance Vision archive builder
     now creates and validates the market manifest without credentials. A
+    schema-v2 gap ledger preserves the exact rare official rows whose raw
+    close-time field ends early and the absent minutes around official data
+    outages; those intervals are excluded and undeclared anomalies still fail. A
     checksum-bound official-source evidence format, deterministic risk timeline
     derivation, and conservative raw official-archive reconstruction are also
     implemented. Present-day Fed/SEC/BLS pages are retained and hashed; records

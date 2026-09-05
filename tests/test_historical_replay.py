@@ -148,6 +148,31 @@ class HistoricalReplayTests(TestCase):
             ),
         )
 
+    def test_point_in_time_query_returns_only_the_latest_contiguous_suffix(self) -> None:
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        path = self._manifest(start, list(range(60)))
+
+        with HistoricalReplayStore(self.root / "replay.sqlite3") as store:
+            store.import_manifest(path)
+            store.connection.execute(
+                "DELETE FROM replay_candles WHERE interval = ? AND open_time_ms = ?",
+                (
+                    MarketInterval.FIFTEEN_MINUTES.value,
+                    int((start + timedelta(minutes=15)).timestamp()) * 1_000,
+                ),
+            )
+            store.connection.commit()
+            series = store.series_at(
+                MarketInterval.FIFTEEN_MINUTES,
+                start + timedelta(hours=1),
+                limit=4,
+            )
+
+        self.assertEqual(
+            tuple(candle.open_time for candle in series.candles),
+            (start + timedelta(minutes=30), start + timedelta(minutes=45)),
+        )
+
     def test_calendar_buckets_use_monday_and_month_start_utc(self) -> None:
         value = datetime(2024, 2, 29, 23, 59, tzinfo=UTC)
         self.assertEqual(
@@ -175,6 +200,35 @@ class HistoricalReplayTests(TestCase):
             taker_buy_quote_volume=Decimal(50),
         )
         self.assertFalse(_Bucket.start(candle, MarketInterval.ONE_MONTH).complete())
+
+    def test_resampling_rejects_a_bucket_with_an_internal_minute_gap(self) -> None:
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+
+        def candle(minute: int) -> Candle:
+            opened = start + timedelta(minutes=minute)
+            return Candle(
+                venue=MarketVenue.SPOT,
+                interval=MarketInterval.ONE_MINUTE,
+                open_time=opened,
+                close_time=opened + timedelta(minutes=1) - timedelta(milliseconds=1),
+                open=Decimal(100),
+                high=Decimal(101),
+                low=Decimal(99),
+                close=Decimal(100),
+                volume=Decimal(1),
+                quote_volume=Decimal(100),
+                trade_count=1,
+                taker_buy_base_volume=Decimal("0.5"),
+                taker_buy_quote_volume=Decimal(50),
+            )
+
+        bucket = _Bucket.start(candle(0), MarketInterval.FIFTEEN_MINUTES)
+        for minute in range(1, 15):
+            if minute != 7:
+                bucket.add(candle(minute))
+
+        self.assertEqual(bucket.last_one_minute_close, candle(14).close_time)
+        self.assertFalse(bucket.complete())
 
     def test_full_calendar_month_builds_every_required_analysis_interval(self) -> None:
         start = datetime(2024, 1, 1, tzinfo=UTC)

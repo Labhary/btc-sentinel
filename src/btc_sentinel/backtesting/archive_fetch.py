@@ -2,20 +2,27 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 import re
 import time
+import zipfile
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Protocol
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from btc_sentinel.backtesting.dataset import HistoricalDataError, HistoricalDatasetLoader
+from btc_sentinel.backtesting.dataset import (
+    HistoricalDataError,
+    HistoricalDatasetLoader,
+    TimestampUnit,
+)
 
 _ORIGIN = "https://data.binance.vision"
 _ARCHIVE_PREFIX = "/data/spot/monthly/klines/BTCUSDT/1m/"
@@ -146,6 +153,86 @@ def _month_bound(value: datetime, name: str) -> datetime:
 
 
 @dataclass(frozen=True, slots=True)
+class ArchiveInspection:
+    row_count: int
+    close_time_anomalies: tuple[dict[str, int], ...]
+    missing_intervals: tuple[dict[str, str], ...]
+
+
+def _inspect_archive(
+    path: Path,
+    expected_member: str,
+    unit: TimestampUnit,
+    coverage_start: datetime,
+    coverage_end: datetime,
+) -> ArchiveInspection:
+    anomalies: list[dict[str, int]] = []
+    gaps: list[tuple[datetime, datetime]] = []
+    expected_open = coverage_start
+    row_count = 0
+    try:
+        with zipfile.ZipFile(path) as archive:
+            members = archive.infolist()
+            if len(members) != 1 or members[0].filename != expected_member:
+                raise HistoricalDataError("Historical ZIP must contain its one expected CSV")
+            with archive.open(members[0]) as binary:
+                rows = csv.reader(io.TextIOWrapper(binary, encoding="utf-8", newline=""))
+                for row_number, row in enumerate(rows, start=1):
+                    row_count = row_number
+                    if len(row) != 12:
+                        raise HistoricalDataError(
+                            "Every Binance kline row must contain exactly 12 fields"
+                        )
+                    try:
+                        opened, closed = int(row[0]), int(row[6])
+                    except ValueError as exc:
+                        raise HistoricalDataError("Archive timestamps must be integers") from exc
+                    opened_at = datetime.fromtimestamp(opened // unit.scale, UTC)
+                    if (
+                        opened % (60 * unit.scale)
+                        or opened_at < expected_open
+                        or opened_at >= coverage_end
+                    ):
+                        raise HistoricalDataError(
+                            "Archive open timestamps are misaligned or unordered"
+                        )
+                    if opened_at > expected_open:
+                        gaps.append((expected_open, opened_at))
+                    expected = opened + 60 * unit.scale - 1
+                    if closed != expected:
+                        anomalies.append(
+                            {
+                                "row_number": row_number,
+                                "open_timestamp": opened,
+                                "raw_close_timestamp": closed,
+                            }
+                        )
+                        gaps.append((opened_at, opened_at + timedelta(minutes=1)))
+                    expected_open = opened_at + timedelta(minutes=1)
+                if expected_open < coverage_end:
+                    gaps.append((expected_open, coverage_end))
+    except (OSError, UnicodeDecodeError, zipfile.BadZipFile, csv.Error) as exc:
+        raise HistoricalDataError("Historical archive is not a valid UTF-8 ZIP/CSV") from exc
+    merged: list[tuple[datetime, datetime]] = []
+    for start, end in sorted(gaps):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return ArchiveInspection(
+        row_count,
+        tuple(anomalies),
+        tuple(
+            {
+                "start": start.isoformat().replace("+00:00", "Z"),
+                "end": end.isoformat().replace("+00:00", "Z"),
+            }
+            for start, end in merged
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class HistoricalArchiveBuild:
     manifest_path: Path
     dataset_id: str
@@ -162,12 +249,16 @@ class BinanceVisionArchiveBuilder:
         loader: HistoricalDatasetLoader | None = None,
         *,
         maximum_months: int = 120,
+        archive_inspector: Callable[
+            [Path, str, TimestampUnit, datetime, datetime], ArchiveInspection
+        ] = _inspect_archive,
     ) -> None:
         if not 1 <= maximum_months <= 240:
             raise ValueError("maximum_months must be between 1 and 240")
         self.downloader = downloader or UrllibArchiveDownloader()
         self.loader = loader or HistoricalDatasetLoader()
         self.maximum_months = maximum_months
+        self.archive_inspector = archive_inspector
 
     def build(
         self,
@@ -204,22 +295,34 @@ class BinanceVisionArchiveBuilder:
             final = archives_directory / filename
             downloaded = self.downloader.download(url, partial)
             partial.rename(final)
+            unit = (
+                TimestampUnit.MILLISECONDS
+                if month_end <= _MICROSECOND_CUTOFF
+                else TimestampUnit.MICROSECONDS
+            )
+            inspection = self.archive_inspector(
+                final,
+                final.with_suffix(".csv").name,
+                unit,
+                month_start,
+                month_end,
+            )
             records.append(
                 {
                     "path": relative,
                     "source_url": url,
                     "sha256": downloaded.sha256,
-                    "timestamp_unit": (
-                        "milliseconds" if month_end <= _MICROSECOND_CUTOFF else "microseconds"
-                    ),
+                    "timestamp_unit": unit.value,
                     "coverage_start": month_start.isoformat().replace("+00:00", "Z"),
                     "coverage_end": month_end.isoformat().replace("+00:00", "Z"),
-                    "row_count": int((month_end - month_start).total_seconds() // 60),
+                    "row_count": inspection.row_count,
+                    "close_time_anomalies": list(inspection.close_time_anomalies),
+                    "missing_intervals": list(inspection.missing_intervals),
                 }
             )
 
         payload = {
-            "schema_version": 1,
+            "schema_version": 2,
             "dataset_id": dataset_id,
             "symbol": "BTCUSDT",
             "venue": "SPOT",

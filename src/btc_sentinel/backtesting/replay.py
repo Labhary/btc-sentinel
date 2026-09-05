@@ -75,6 +75,7 @@ class _Bucket:
     taker_buy_quote_volume: Decimal
     first_one_minute_open: datetime
     last_one_minute_close: datetime
+    one_minute_count: int
 
     @classmethod
     def start(cls, candle: Candle, interval: MarketInterval) -> _Bucket:
@@ -92,6 +93,7 @@ class _Bucket:
             candle.taker_buy_quote_volume,
             candle.open_time,
             candle.close_time,
+            1,
         )
 
     def add(self, candle: Candle) -> None:
@@ -104,11 +106,21 @@ class _Bucket:
         self.taker_buy_base_volume += candle.taker_buy_base_volume
         self.taker_buy_quote_volume += candle.taker_buy_quote_volume
         self.last_one_minute_close = candle.close_time
+        self.one_minute_count += 1
 
     def complete(self) -> bool:
+        expected_minutes = int(
+            (
+                self.interval.expected_close_time(self.open_time)
+                + timedelta(milliseconds=1)
+                - self.open_time
+            ).total_seconds()
+            // 60
+        )
         return (
             self.first_one_minute_open == self.open_time
             and self.last_one_minute_close == self.interval.expected_close_time(self.open_time)
+            and self.one_minute_count == expected_minutes
         )
 
     def candle(self) -> Candle:
@@ -356,8 +368,15 @@ class HistoricalReplayStore:
         ).fetchall()
         if not rows:
             raise DomainValidationError(f"No completed historical {interval.value} candles")
-        candles = tuple(self._row(interval, row) for row in reversed(rows))
-        return CandleSeries(candles)
+        descending = tuple(self._row(interval, row) for row in rows)
+        contiguous = [descending[0]]
+        newer = descending[0]
+        for older in descending[1:]:
+            if older.close_time + timedelta(milliseconds=1) != newer.open_time:
+                break
+            contiguous.append(older)
+            newer = older
+        return CandleSeries(tuple(reversed(contiguous)))
 
     def market_view(self, as_of: datetime, *, lookback: int = 200) -> HistoricalMarketView:
         now = ensure_utc(as_of)

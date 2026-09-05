@@ -9,6 +9,7 @@ from unittest import TestCase
 
 from btc_sentinel.backtesting.archive_fetch import (
     ArchiveDownload,
+    ArchiveInspection,
     BinanceVisionArchiveBuilder,
     HistoricalDataError,
     UrllibArchiveDownloader,
@@ -79,7 +80,11 @@ class HistoricalArchiveFetchTests(TestCase):
         downloader = FakeDownloader()
         loader = FakeLoader()
         output = self.root / "dataset"
-        result = BinanceVisionArchiveBuilder(downloader, loader).build(
+        result = BinanceVisionArchiveBuilder(
+            downloader,
+            loader,
+            archive_inspector=lambda *_args: ArchiveInspection(44_640, (), ()),
+        ).build(
             datetime(2024, 12, 1, tzinfo=UTC),
             datetime(2025, 2, 1, tzinfo=UTC),
             output,
@@ -101,11 +106,18 @@ class HistoricalArchiveFetchTests(TestCase):
         records = loader.payload["archives"]
         self.assertEqual(records[0]["timestamp_unit"], "milliseconds")
         self.assertEqual(records[1]["timestamp_unit"], "microseconds")
-        self.assertEqual(records[0]["row_count"], 31 * 24 * 60)
-        self.assertEqual(records[1]["row_count"], 31 * 24 * 60)
+        self.assertEqual(records[0]["close_time_anomalies"], [])
+        self.assertEqual(records[0]["row_count"], 44_640)
+        self.assertEqual(records[1]["row_count"], 44_640)
+        self.assertEqual(records[0]["missing_intervals"], [])
 
     def test_refuses_unaligned_empty_large_or_existing_ranges(self) -> None:
-        builder = BinanceVisionArchiveBuilder(FakeDownloader(), FakeLoader(), maximum_months=2)
+        builder = BinanceVisionArchiveBuilder(
+            FakeDownloader(),
+            FakeLoader(),
+            maximum_months=2,
+            archive_inspector=lambda *_args: ArchiveInspection(1, (), ()),
+        )
         cases = (
             (
                 datetime(2024, 1, 2, tzinfo=UTC),
@@ -143,7 +155,11 @@ class HistoricalArchiveFetchTests(TestCase):
     def test_failed_download_never_publishes_a_manifest(self) -> None:
         output = self.root / "failed"
         with self.assertRaisesRegex(HistoricalDataError, "synthetic"):
-            BinanceVisionArchiveBuilder(FakeDownloader(True), FakeLoader()).build(
+            BinanceVisionArchiveBuilder(
+                FakeDownloader(True),
+                FakeLoader(),
+                archive_inspector=lambda *_args: ArchiveInspection(1, (), ()),
+            ).build(
                 datetime(2024, 1, 1, tzinfo=UTC),
                 datetime(2024, 2, 1, tzinfo=UTC),
                 output,

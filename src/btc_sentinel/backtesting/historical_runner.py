@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Protocol
 
 from btc_sentinel.backtesting.engine import BacktestEngine
@@ -222,11 +222,26 @@ class HistoricalReplayRunner:
     def _simulate(store, signal, end) -> tuple[BacktestTrade, BacktestTrade]:
         fixed = IncrementalTradeReplay(signal, OutcomeVariant.FIXED)
         managed = IncrementalTradeReplay(signal, OutcomeVariant.MANAGED)
-        for candle in store.iter_candles(MarketInterval.ONE_MINUTE, signal.terms.created_at, end):
-            if fixed.trade is None:
-                fixed.advance(candle)
-            if managed.trade is None:
-                managed.advance(candle)
-            if fixed.trade is not None and managed.trade is not None:
-                break
+        try:
+            for candle in store.iter_candles(
+                MarketInterval.ONE_MINUTE, signal.terms.created_at, end
+            ):
+                if fixed.trade is None:
+                    fixed.advance(candle)
+                if managed.trade is None:
+                    managed.advance(candle)
+                if fixed.trade is not None and managed.trade is not None:
+                    break
+        except DomainValidationError as exc:
+            if str(exc) not in {
+                "Historical streaming range contains a candle gap",
+                "Historical streaming range contains no candles",
+            }:
+                raise
+            unavailable_at = max(
+                fixed.next_open,
+                managed.next_open,
+                signal.terms.created_at + timedelta(minutes=1),
+            )
+            return fixed.finish(unavailable_at), managed.finish(unavailable_at)
         return fixed.finish(end), managed.finish(end)

@@ -47,6 +47,9 @@ _ARCHIVE_FIELDS = {
     "coverage_end",
     "row_count",
 }
+_ARCHIVE_FIELDS_V2 = _ARCHIVE_FIELDS | {"close_time_anomalies", "missing_intervals"}
+_ANOMALY_FIELDS = {"row_number", "open_timestamp", "raw_close_timestamp"}
+_MISSING_FIELDS = {"start", "end"}
 
 
 class HistoricalDataError(BtcSentinelError):
@@ -93,6 +96,30 @@ def _fields(value: dict[str, object], expected: set[str], name: str) -> None:
 
 
 @dataclass(frozen=True, slots=True)
+class CloseTimeAnomaly:
+    row_number: int
+    open_timestamp: int
+    raw_close_timestamp: int
+
+
+@dataclass(frozen=True, slots=True)
+class MissingInterval:
+    start: datetime
+    end: datetime
+
+    def __post_init__(self) -> None:
+        if (
+            self.start.tzinfo is None
+            or self.start.utcoffset() is None
+            or self.end.tzinfo is None
+            or self.end.utcoffset() is None
+        ):
+            raise HistoricalDataError("Archive missing interval must be timezone-aware")
+        object.__setattr__(self, "start", self.start.astimezone(UTC))
+        object.__setattr__(self, "end", self.end.astimezone(UTC))
+
+
+@dataclass(frozen=True, slots=True)
 class ArchiveSpec:
     path: str
     source_url: str
@@ -101,6 +128,8 @@ class ArchiveSpec:
     coverage_start: datetime
     coverage_end: datetime
     row_count: int
+    close_time_anomalies: tuple[CloseTimeAnomaly, ...] = ()
+    missing_intervals: tuple[MissingInterval, ...] = ()
 
     def __post_init__(self) -> None:
         if self.coverage_start.tzinfo is None or self.coverage_end.tzinfo is None:
@@ -147,8 +176,50 @@ class ArchiveSpec:
         if expected_unit is None or self.timestamp_unit is not expected_unit:
             raise HistoricalDataError("Archive timestamp unit contradicts its Binance date range")
         expected_rows = int((self.coverage_end - self.coverage_start) / timedelta(minutes=1))
-        if self.coverage_end <= self.coverage_start or self.row_count != expected_rows:
-            raise HistoricalDataError("Archive row_count does not match its exclusive coverage")
+        if self.coverage_end <= self.coverage_start:
+            raise HistoricalDataError("Archive coverage is empty")
+        object.__setattr__(self, "close_time_anomalies", tuple(self.close_time_anomalies))
+        object.__setattr__(self, "missing_intervals", tuple(self.missing_intervals))
+        previous_end = self.coverage_start
+        missing_minutes = 0
+        for interval in self.missing_intervals:
+            start = interval.start.astimezone(UTC)
+            end = interval.end.astimezone(UTC)
+            if (
+                start < self.coverage_start
+                or end > self.coverage_end
+                or end <= start
+                or start.second
+                or start.microsecond
+                or end.second
+                or end.microsecond
+                or start < previous_end
+            ):
+                raise HistoricalDataError("Archive missing intervals are invalid")
+            previous_end = end
+            missing_minutes += int((end - start) / timedelta(minutes=1))
+        rows = [item.row_number for item in self.close_time_anomalies]
+        if len(rows) != len(set(rows)) or any(not 1 <= row <= self.row_count for row in rows):
+            raise HistoricalDataError("Archive close-time anomaly rows are invalid")
+        minute = 60 * self.timestamp_unit.scale
+        for item in self.close_time_anomalies:
+            if (
+                item.open_timestamp % minute
+                or not item.open_timestamp
+                <= item.raw_close_timestamp
+                < item.open_timestamp + minute - 1
+            ):
+                raise HistoricalDataError("Archive close-time anomaly values are invalid")
+            opened = _epoch(item.open_timestamp, self.timestamp_unit)
+            if not any(
+                interval.start <= opened < interval.end for interval in self.missing_intervals
+            ):
+                raise HistoricalDataError(
+                    "Archive close-time anomaly is not inside a missing interval"
+                )
+        expected_raw_rows = expected_rows - missing_minutes + len(self.close_time_anomalies)
+        if self.row_count != expected_raw_rows:
+            raise HistoricalDataError("Archive row_count contradicts its missing intervals")
 
 
 @dataclass(frozen=True, slots=True)
@@ -203,10 +274,46 @@ class HistoricalDatasetSummary:
     last_close_time: datetime
 
 
-def _archive(value: object, index: int) -> ArchiveSpec:
+def _anomalies(value: object, index: int, version: int) -> tuple[CloseTimeAnomaly, ...]:
+    if version == 1:
+        return ()
+    if not isinstance(value, list):
+        raise HistoricalDataError(f"archives[{index}].close_time_anomalies must be an array")
+    result = []
+    for anomaly_index, item in enumerate(value):
+        if not isinstance(item, dict):
+            raise HistoricalDataError("Archive close-time anomaly must be an object")
+        _fields(item, _ANOMALY_FIELDS, f"archives[{index}].close_time_anomalies[{anomaly_index}]")
+        values = (item["row_number"], item["open_timestamp"], item["raw_close_timestamp"])
+        if any(isinstance(part, bool) or not isinstance(part, int) for part in values):
+            raise HistoricalDataError("Archive close-time anomaly values must be integers")
+        result.append(CloseTimeAnomaly(*values))
+    return tuple(result)
+
+
+def _missing(value: object, index: int, version: int) -> tuple[MissingInterval, ...]:
+    if version == 1:
+        return ()
+    if not isinstance(value, list):
+        raise HistoricalDataError(f"archives[{index}].missing_intervals must be an array")
+    result = []
+    for missing_index, item in enumerate(value):
+        if not isinstance(item, dict):
+            raise HistoricalDataError("Archive missing interval must be an object")
+        _fields(item, _MISSING_FIELDS, f"archives[{index}].missing_intervals[{missing_index}]")
+        result.append(
+            MissingInterval(
+                _utc(item["start"], "missing interval start"),
+                _utc(item["end"], "missing interval end"),
+            )
+        )
+    return tuple(result)
+
+
+def _archive(value: object, index: int, version: int) -> ArchiveSpec:
     if not isinstance(value, dict):
         raise HistoricalDataError(f"archives[{index}] must be an object")
-    _fields(value, _ARCHIVE_FIELDS, f"archives[{index}]")
+    _fields(value, _ARCHIVE_FIELDS if version == 1 else _ARCHIVE_FIELDS_V2, f"archives[{index}]")
     try:
         unit = TimestampUnit(value["timestamp_unit"])
     except (TypeError, ValueError) as exc:
@@ -227,6 +334,8 @@ def _archive(value: object, index: int) -> ArchiveSpec:
         coverage_start=_utc(value["coverage_start"], f"archives[{index}].coverage_start"),
         coverage_end=_utc(value["coverage_end"], f"archives[{index}].coverage_end"),
         row_count=row_count,
+        close_time_anomalies=_anomalies(value.get("close_time_anomalies"), index, version),
+        missing_intervals=_missing(value.get("missing_intervals"), index, version),
     )
 
 
@@ -242,8 +351,9 @@ def parse_manifest(raw: bytes) -> tuple[HistoricalDatasetManifest, str]:
     if not isinstance(payload, dict):
         raise HistoricalDataError("Historical manifest must be a JSON object")
     _fields(payload, _TOP_LEVEL_FIELDS, "manifest")
-    if payload["schema_version"] != 1:
-        raise HistoricalDataError("Historical manifest schema_version must be 1")
+    version = payload["schema_version"]
+    if isinstance(version, bool) or version not in {1, 2}:
+        raise HistoricalDataError("Historical manifest schema_version must be 1 or 2")
     if (
         payload["symbol"] != BTCUSDT
         or payload["venue"] != MarketVenue.SPOT.value
@@ -268,7 +378,7 @@ def parse_manifest(raw: bytes) -> tuple[HistoricalDatasetManifest, str]:
         coverage_start=_utc(payload["coverage_start"], "coverage_start"),
         coverage_end=_utc(payload["coverage_end"], "coverage_end"),
         excluded_features=tuple(excluded),
-        archives=tuple(_archive(item, index) for index, item in enumerate(archives)),
+        archives=tuple(_archive(item, index, version) for index, item in enumerate(archives)),
     )
     return manifest, hashlib.sha256(raw).hexdigest()
 
@@ -405,10 +515,6 @@ class HistoricalDatasetLoader:
             if _file_sha256(archive_path, self.maximum_archive_bytes) != spec.sha256:
                 raise HistoricalDataError(f"Historical archive checksum mismatch: {spec.path}")
             for candle in self._iter_archive(archive_path, spec):
-                if previous_open is not None and candle.open_time != previous_open + timedelta(
-                    minutes=1
-                ):
-                    raise HistoricalDataError("Historical candles are gapped or unordered")
                 if first_open is None:
                     first_open = candle.open_time
                 previous_open = candle.open_time
@@ -425,10 +531,6 @@ class HistoricalDatasetLoader:
                 if visitor is not None:
                     visitor(candle)
         assert first_open is not None and previous_open is not None and last_close is not None
-        if first_open != manifest.coverage_start:
-            raise HistoricalDataError("First candle does not match manifest coverage_start")
-        if previous_open + timedelta(minutes=1) != manifest.coverage_end:
-            raise HistoricalDataError("Last candle does not match manifest coverage_end")
         summary = HistoricalDatasetSummary(
             manifest,
             manifest_digest,
@@ -457,20 +559,64 @@ class HistoricalDatasetLoader:
                 with archive.open(member) as binary:
                     text = io.TextIOWrapper(binary, encoding="utf-8", newline="")
                     row_count = 0
-                    first_open: datetime | None = None
-                    previous_open: datetime | None = None
-                    for row in csv.reader(text):
+                    declared = {
+                        item.row_number: (item.open_timestamp, item.raw_close_timestamp)
+                        for item in spec.close_time_anomalies
+                    }
+                    used: set[int] = set()
+                    intervals = iter(spec.missing_intervals)
+                    interval = next(intervals, None)
+                    expected_open = spec.coverage_start
+                    for row_number, row in enumerate(csv.reader(text), start=1):
+                        if len(row) != 12:
+                            raise HistoricalDataError(
+                                "Every Binance kline row must contain exactly 12 fields"
+                            )
+                        try:
+                            raw_open, raw_close = int(row[0]), int(row[6])
+                        except ValueError as exc:
+                            raise HistoricalDataError(
+                                "Archive timestamps must be integers"
+                            ) from exc
+                        opened = _epoch(raw_open, spec.timestamp_unit)
+                        while interval is not None and interval.end <= opened:
+                            if expected_open != interval.start:
+                                raise HistoricalDataError(
+                                    "Archive data does not reach its declared missing interval"
+                                )
+                            expected_open = interval.end
+                            interval = next(intervals, None)
+                        if interval is not None and interval.start <= opened < interval.end:
+                            if declared.get(row_number) != (raw_open, raw_close):
+                                raise HistoricalDataError(
+                                    "Archive contains data inside a declared missing interval"
+                                )
+                            used.add(row_number)
+                            row_count += 1
+                            continue
+                        if opened != expected_open:
+                            raise HistoricalDataError(
+                                "Historical candles are gapped or unordered without declaration"
+                            )
                         candle = _candle(row, spec.timestamp_unit)
-                        if (
-                            previous_open is not None
-                            and candle.open_time != previous_open + timedelta(minutes=1)
-                        ):
-                            raise HistoricalDataError("Historical candles are gapped or unordered")
-                        if first_open is None:
-                            first_open = candle.open_time
-                        previous_open = candle.open_time
+                        expected_open += timedelta(minutes=1)
                         row_count += 1
                         yield candle
+                    while interval is not None:
+                        if expected_open != interval.start:
+                            raise HistoricalDataError(
+                                "Archive data does not reach its declared missing interval"
+                            )
+                        expected_open = interval.end
+                        interval = next(intervals, None)
+                    if expected_open != spec.coverage_end:
+                        raise HistoricalDataError(
+                            "Archive data does not match its declared coverage and gaps"
+                        )
+                    if used != set(declared):
+                        raise HistoricalDataError(
+                            "Declared archive close-time anomaly was not used"
+                        )
         except MarketDataValidationError as exc:
             raise HistoricalDataError(
                 "Historical candle values violate the market contract"
@@ -479,8 +625,3 @@ class HistoricalDatasetLoader:
             raise HistoricalDataError("Historical archive is not a valid UTF-8 ZIP/CSV") from exc
         if row_count != spec.row_count:
             raise HistoricalDataError("Historical archive row count does not match the manifest")
-        assert first_open is not None and previous_open is not None
-        if first_open != spec.coverage_start:
-            raise HistoricalDataError("Archive first candle does not match declared coverage")
-        if previous_open + timedelta(minutes=1) != spec.coverage_end:
-            raise HistoricalDataError("Archive last candle does not match declared coverage")
