@@ -77,6 +77,14 @@ class FakeReplayStore:
             current += timedelta(minutes=1)
 
 
+class GappedReplayStore(FakeReplayStore):
+    def iter_candles(self, interval, start, end):
+        for index, candle in enumerate(super().iter_candles(interval, start, end)):
+            if index == 5:
+                raise DomainValidationError("Historical streaming range contains a candle gap")
+            yield candle
+
+
 class HistoricalRunnerTests(TestCase):
     def test_exhaustive_candidate_creates_both_tracks_and_expires_without_fill(self) -> None:
         store = FakeReplayStore()
@@ -104,6 +112,19 @@ class HistoricalRunnerTests(TestCase):
         self.assertIn("required historical news", " ".join(dict(run.rejection_counts)))
         with self.assertRaisesRegex(DomainValidationError, "eligible risk coverage"):
             run.evaluate(END)
+
+    def test_future_archive_gap_marks_open_tracks_unresolved(self) -> None:
+        run = HistoricalReplayRunner().run(
+            GappedReplayStore(),
+            START,
+            END,
+            ClearRiskProvider(),
+        )
+
+        self.assertEqual(run.created_signal_count, 1)
+        self.assertEqual(run.fixed_trades[0].outcome, BacktestOutcome.UNRESOLVED)
+        self.assertEqual(run.managed_trades[0].outcome, BacktestOutcome.UNRESOLVED)
+        self.assertEqual(run.fixed_trades[0].terminal_at, START + timedelta(minutes=5))
 
     def test_future_or_misaligned_risk_assessment_is_rejected(self) -> None:
         with self.assertRaisesRegex(DomainValidationError, "match candidate time"):

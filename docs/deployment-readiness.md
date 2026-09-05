@@ -21,7 +21,8 @@ without credentials. The historical risk timeline can now be derived from
 checksum-bound normalized official-source evidence. The conservative archive
 builder now downloads and retains the raw Federal Reserve, SEC, and BLS pages,
 binds normalized records to those hashes, and turns uncertain BLS schedule
-availability into blocking gaps. A live 2024 smoke reconstruction passed, but
+availability—including a missing last-modified date—into blocking gaps. A live
+2024 smoke reconstruction passed, but
 the predeclared 2022–2025 representative replay has not run. This is engineering
 readiness, not performance evidence.
 

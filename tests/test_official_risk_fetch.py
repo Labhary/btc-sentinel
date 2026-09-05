@@ -17,7 +17,7 @@ from btc_sentinel.backtesting.risk_derivation import HistoricalRiskTimelineBuild
 from btc_sentinel.backtesting.risk_evidence import HistoricalRiskEvidenceLoader
 
 
-def _bls_page(year: int, modified: str = "November 17, 2023") -> bytes:
+def _bls_page(year: int, modified: str | None = "November 17, 2023") -> bytes:
     sections = []
     for month in (
         "January",
@@ -33,10 +33,11 @@ def _bls_page(year: int, modified: str = "November 17, 2023") -> bytes:
         "November",
         "December",
     ):
+        modification = "" if modified is None else f" Last Modified Date: {modified}"
         sections.append(
             f"<h1>{month} {year}</h1><table><tr><td>Monday, {month} 01, {year}</td>"
             "<td>08:30 AM</td><td>Consumer Price Index for prior month</td></tr></table>"
-            f"<p>NOTE: All times on calendar are Eastern Time. Last Modified Date: {modified}</p>"
+            f"<p>NOTE: All times on calendar are Eastern Time.{modification}</p>"
         )
     return ("<html><body>" + "".join(sections) + "</body></html>").encode()
 
@@ -94,6 +95,17 @@ class OfficialRiskArchiveTests(TestCase):
         self.assertEqual(gaps[0][0], datetime(2024, 1, 1, tzinfo=UTC))
         self.assertGreater(gaps[0][1], datetime(2024, 1, 15, tzinfo=UTC))
         self.assertEqual(records[0]["starts_at"], "2024-01-01T13:30:00+00:00")
+
+    def test_missing_bls_modified_date_blocks_the_entire_month(self) -> None:
+        retrieved = datetime(2026, 1, 1, tzinfo=UTC)
+        records, gaps = _bls_records(_bls_page(2024, None), 2024, retrieved)
+        self.assertEqual(len(records), 12)
+        self.assertEqual(len(gaps), 12)
+        self.assertEqual(
+            gaps[0],
+            (datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 2, 1, tzinfo=UTC)),
+        )
+        self.assertEqual(records[0]["observed_at"], retrieved.isoformat())
 
     def test_builds_v2_manifest_with_raw_artifacts_and_blocking_gaps(self) -> None:
         downloader = FakeDownloader()

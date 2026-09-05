@@ -68,6 +68,14 @@ range passes the same checksum, ZIP, row, timestamp, and continuity validator.
 Interrupted or invalid builds never produce a final manifest and never
 overwrite an existing dataset directory.
 
+Some official Binance Vision rows have an early raw close-time field and are
+sometimes followed by a market-data outage. Schema v2 never rounds or silently
+relaxes these rows. The builder records the exact archive row number, open
+timestamp, and raw close timestamp, plus every absent UTC minute interval, in a
+checksum-bound ledger. The suspect row and the declared absent interval are
+excluded from analysis. Any undeclared, altered, overlapping, late, or
+misaligned timestamp still rejects the dataset.
+
 ## Point-in-time candle index
 
 Version `0.12.5` streams a validated manifest into a disk-backed SQLite replay
@@ -174,6 +182,10 @@ daylight-saving rules. A schedule becomes observable only at the conservative
 end of its official `Last Modified Date`. If that date falls after the start of
 the affected month, the earlier interval is emitted as a required coverage gap;
 the derived risk timeline must encode every such point as `BLOCK`.
+If an archived month has no last-modified date, its events are retained for
+audit but are not considered historically observable: the complete month is a
+required blocking gap. Missing provenance never aborts into a tempting smaller
+test period and never becomes `CLEAR`.
 
 The first 24 hours are also blocked because the preceding news lookback is
 outside the requested archive range. The first and final two hours are blocked

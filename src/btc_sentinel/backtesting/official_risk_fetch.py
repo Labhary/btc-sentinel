@@ -287,7 +287,7 @@ def _sec_records(payload: bytes, year: int) -> tuple[dict[str, object], ...]:
 
 
 def _bls_records(
-    payload: bytes, year: int
+    payload: bytes, year: int, retrieved_at: datetime | None = None
 ) -> tuple[tuple[dict[str, object], ...], tuple[tuple[datetime, datetime], ...]]:
     raw_text = html.unescape(payload.decode("utf-8"))
     visible = _document(payload).text
@@ -310,14 +310,15 @@ def _bls_records(
             r"Last Modified Date:\s*(" + "|".join(_MONTHS) + r")\s+\d{1,2},\s+20\d{2}",
             section,
         )
-        if modified_match is None:
-            raise HistoricalDataError("BLS monthly schedule lacks a last-modified date")
-        modified_date = datetime.strptime(
-            modified_match.group(0).split(":", 1)[1].strip(), "%B %d, %Y"
-        ).date()
-        observed = datetime.combine(modified_date, clock_time.max, _EASTERN).astimezone(UTC)
         month_start = datetime(year, month, 1, tzinfo=UTC)
         month_end = datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=UTC)
+        if modified_match is None:
+            observed = (retrieved_at or datetime(year + 1, 1, 1, tzinfo=UTC)).astimezone(UTC)
+        else:
+            modified_date = datetime.strptime(
+                modified_match.group(0).split(":", 1)[1].strip(), "%B %d, %Y"
+            ).date()
+            observed = datetime.combine(modified_date, clock_time.max, _EASTERN).astimezone(UTC)
         if observed > month_start:
             gaps.append((month_start, min(observed, month_end)))
         weekday = r"(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)"
@@ -501,7 +502,7 @@ class OfficialRiskArchiveBuilder:
 
             bls_url = f"{_BLS_ORIGIN}/schedule/{year}/home.htm"
             payload, artifact_id = acquire("bls_calendar", f"bls-schedule-{year}", bls_url)
-            records, year_gaps = _bls_records(payload, year)
+            records, year_gaps = _bls_records(payload, year, retrieved)
             for record in records:
                 record["artifact_ids"] = [artifact_id]
                 source_records["bls_calendar"].append(record)

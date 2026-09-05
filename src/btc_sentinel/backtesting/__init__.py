@@ -2,17 +2,20 @@
 
 from btc_sentinel.backtesting.archive_fetch import (
     ArchiveDownload,
+    ArchiveInspection,
     BinanceVisionArchiveBuilder,
     HistoricalArchiveBuild,
     UrllibArchiveDownloader,
 )
 from btc_sentinel.backtesting.dataset import (
     ArchiveSpec,
+    CloseTimeAnomaly,
     HistoricalDataError,
     HistoricalDataset,
     HistoricalDatasetLoader,
     HistoricalDatasetManifest,
     HistoricalDatasetSummary,
+    MissingInterval,
     TimestampUnit,
     parse_manifest,
 )
@@ -67,6 +70,7 @@ from btc_sentinel.backtesting.simulator import simulate_fixed_case, simulate_man
 
 __all__ = [
     "ArchiveDownload",
+    "ArchiveInspection",
     "ArchiveSpec",
     "BacktestComparisonReport",
     "BacktestEngine",
@@ -76,6 +80,7 @@ __all__ = [
     "BacktestTrade",
     "BacktestVerdict",
     "BinanceVisionArchiveBuilder",
+    "CloseTimeAnomaly",
     "CostStressResult",
     "EvidenceSourceSpec",
     "FailClosedHistoricalRiskProvider",
@@ -99,6 +104,7 @@ __all__ = [
     "HistoricalRiskStore",
     "HistoricalRiskTimelineBuilder",
     "HistoricalSignalCase",
+    "MissingInterval",
     "ObservedNews",
     "ObservedScheduledEvent",
     "OfficialRiskArchiveBuild",

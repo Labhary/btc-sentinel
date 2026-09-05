@@ -134,6 +134,49 @@ class HistoricalDatasetTests(TestCase):
         with self.assertRaisesRegex(HistoricalDataError, "checksum mismatch"):
             HistoricalDatasetLoader().load(self.write_manifest(manifest([record])))
 
+    def test_v2_excludes_only_an_exact_declared_early_close_interval(self) -> None:
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        fields = kline(start, "milliseconds").split(",")
+        opened = int(fields[0])
+        fields[6] = str(opened + 54_773)
+        content = archive_bytes(
+            "BTCUSDT-1m-day.csv",
+            [",".join(fields), kline(start + timedelta(minutes=1), "milliseconds")],
+        )
+        record = archive_record(
+            self.write_archive("BTCUSDT-1m-day", content),
+            content,
+            "milliseconds",
+            start,
+            2,
+        )
+        record["close_time_anomalies"] = [
+            {
+                "row_number": 1,
+                "open_timestamp": opened,
+                "raw_close_timestamp": opened + 54_773,
+            }
+        ]
+        record["missing_intervals"] = [
+            {
+                "start": start.isoformat().replace("+00:00", "Z"),
+                "end": (start + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
+            }
+        ]
+        payload = manifest([record])
+        payload["schema_version"] = 2
+        dataset = HistoricalDatasetLoader().load(self.write_manifest(payload))
+        self.assertEqual(dataset.candle_count, 1)
+        self.assertEqual(dataset.candles.candles[0].open_time, start + timedelta(minutes=1))
+
+        record["close_time_anomalies"][0]["raw_close_timestamp"] += 1
+        with self.assertRaisesRegex(HistoricalDataError, "inside a declared missing interval"):
+            HistoricalDatasetLoader().load(self.write_manifest(payload))
+
+        record["close_time_anomalies"] = []
+        with self.assertRaisesRegex(HistoricalDataError, "row_count contradicts"):
+            HistoricalDatasetLoader().load(self.write_manifest(payload))
+
     def test_manifest_rejects_unknown_duplicate_and_unsafe_fields(self) -> None:
         start = datetime(2024, 1, 1, tzinfo=UTC)
         content = archive_bytes("BTCUSDT-1m-day.csv", [kline(start, "milliseconds")])
