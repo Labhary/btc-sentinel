@@ -25,10 +25,11 @@ checksum-bound normalized official-source evidence. The conservative archive
 builder now downloads and retains the raw Federal Reserve, SEC, and BLS pages,
 binds normalized records to those hashes, and turns uncertain BLS schedule
 availability—including a missing last-modified date—into blocking gaps. A live
-2024 smoke reconstruction passed. Native Binance `1mo` acquisition and replay
-replacement are now available so the rerun can obtain long-horizon warm-up
-without bridging one-minute outages. This is engineering readiness, not
-performance evidence.
+2024 smoke reconstruction passed. Native Binance `1mo` acquisition and a
+bounded range overlay are now available so the rerun can obtain long-horizon
+warm-up without bridging one-minute outages. The official native archive ends
+at February 2024; exact gap-checked one-minute derivation remains authoritative
+after that boundary. This is engineering readiness, not performance evidence.
 
 Deploying the current branch would therefore be premature. A green CI run
 proves configuration and boundary behavior; it does not prove a running bot.

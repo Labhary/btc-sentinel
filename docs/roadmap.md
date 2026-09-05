@@ -54,10 +54,12 @@ add files without activating production schedules.
     blocking gap. The first strict 2022–2025 run evaluated 140,250 boundaries
     and returned INCONCLUSIVE with zero signals because declared one-minute
     outages prevented 50 consecutive derived monthly candles. Native official
-    Binance `1mo` acquisition and transactional monthly replacement are now
+    Binance `1mo` acquisition and transactional range overlay are now
     implemented to resolve that evidence-coverage problem without filling or
-    ignoring gaps. A rerun with the native supplement is still required before
-    any performance claim.
+    ignoring gaps. The official monthly archive ends at February 2024, so the
+    fixed reconstruction retains exact one-minute-derived months after that
+    boundary. A rerun with the native supplement is still required before any
+    performance claim.
 12. **Free deployment — in progress, inactive**
     D1 runtime-boundary migration, signed bootstrap/health API, idempotent
     cron-to-workflow dispatch, deterministic orchestration core, typed runtime
