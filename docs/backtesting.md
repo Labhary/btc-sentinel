@@ -161,11 +161,46 @@ btc-sentinel-build-risk-history \
   --dataset-id official-risk-2022-2025-v1
 ```
 
-Normalized records and hashes make the derivation reproducible, but they do
-not authenticate who assembled the evidence. The source files and claimed
-coverage still require an independent provenance review; a fabricated input
-file can be internally consistent. This limitation is explicit and remains an
-activation blocker.
+Version `0.12.11` removes that unauthenticated assembly step. It downloads only
+fixed HTTPS paths on the Federal Reserve, SEC, and BLS official sites, rejects
+redirects and unexpected content, and stores every raw HTML response with its
+URL, retrieval time, and SHA-256. Every normalized record cites the raw
+artifact or artifacts that produced it. The SEC's exact UTC archive timestamps
+and the Federal Reserve's stated Eastern release times become observation
+times without rounding them earlier.
+
+BLS event times are interpreted in `America/New_York`, including historical
+daylight-saving rules. A schedule becomes observable only at the conservative
+end of its official `Last Modified Date`. If that date falls after the start of
+the affected month, the earlier interval is emitted as a required coverage gap;
+the derived risk timeline must encode every such point as `BLOCK`.
+
+The first 24 hours are also blocked because the preceding news lookback is
+outside the requested archive range. The first and final two hours are blocked
+for the equivalent scheduled-event window. These edge guards keep the
+year-exclusive input contract without inventing adjacent-year knowledge.
+
+Build a representative official evidence set, where the end year is exclusive:
+
+```bash
+btc-sentinel-fetch-risk-history \
+  --start-year 2022 \
+  --end-year 2026 \
+  --output ./official-risk-evidence-2022-2025 \
+  --dataset-id official-risk-evidence-2022-2025-v1
+
+btc-sentinel-build-risk-history \
+  ./official-risk-evidence-2022-2025/evidence-manifest.json \
+  ./official-risk-history-2022-2025 \
+  --dataset-id official-risk-2022-2025-v1
+```
+
+The downloader has bounded page, response-size, timeout, and retry limits and
+never overwrites an output directory. A changed or incomplete official page
+aborts before the final evidence manifest is published. The raw pages are
+present-day official archives, not cryptographic snapshots captured on their
+original dates; the adverse observation and gap rules prevent this limitation
+from being converted into invented historical availability.
 
 ## Executable historical run
 

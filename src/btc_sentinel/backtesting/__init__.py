@@ -36,6 +36,11 @@ from btc_sentinel.backtesting.models import (
     WalkForwardFold,
     WalkForwardPolicy,
 )
+from btc_sentinel.backtesting.official_risk_fetch import (
+    OfficialRiskArchiveBuild,
+    OfficialRiskArchiveBuilder,
+    UrllibOfficialPageDownloader,
+)
 from btc_sentinel.backtesting.replay import (
     HistoricalImportSummary,
     HistoricalMarketView,
@@ -96,9 +101,12 @@ __all__ = [
     "HistoricalSignalCase",
     "ObservedNews",
     "ObservedScheduledEvent",
+    "OfficialRiskArchiveBuild",
+    "OfficialRiskArchiveBuilder",
     "SensitivityResult",
     "TimestampUnit",
     "UrllibArchiveDownloader",
+    "UrllibOfficialPageDownloader",
     "WalkForwardFold",
     "WalkForwardPolicy",
     "parse_manifest",
