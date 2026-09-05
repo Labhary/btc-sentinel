@@ -268,6 +268,12 @@ the run completed; the JSON verdict may still be `FAILED` or `INCONCLUSIVE`.
 Without the native monthly supplement, declared one-minute outages can leave
 the long-horizon analysis without its fixed 50-candle warm-up.
 
+The manual `Representative historical evaluation` GitHub Actions workflow runs
+that exact acquisition and evaluation sequence with read-only repository
+permissions. It retains the downloaded evidence, manifests, and JSON report for
+90 days even when a later step fails. It requires no exchange or deployment
+secret and must never be changed to tune the frozen evaluation window.
+
 ## Conservative simulation
 
 - Only completed, continuous Spot BTCUSDT one-minute candles are accepted.
