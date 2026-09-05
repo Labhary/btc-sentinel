@@ -39,6 +39,15 @@ from btc_sentinel.backtesting.models import (
     WalkForwardFold,
     WalkForwardPolicy,
 )
+from btc_sentinel.backtesting.monthly_dataset import (
+    BinanceVisionMonthlyBuilder,
+    NativeMonthlyArchiveSpec,
+    NativeMonthlyBuild,
+    NativeMonthlyLoader,
+    NativeMonthlyManifest,
+    NativeMonthlySummary,
+    parse_monthly_manifest,
+)
 from btc_sentinel.backtesting.official_risk_fetch import (
     OfficialRiskArchiveBuild,
     OfficialRiskArchiveBuilder,
@@ -80,6 +89,7 @@ __all__ = [
     "BacktestTrade",
     "BacktestVerdict",
     "BinanceVisionArchiveBuilder",
+    "BinanceVisionMonthlyBuilder",
     "CloseTimeAnomaly",
     "CostStressResult",
     "EvidenceSourceSpec",
@@ -105,6 +115,11 @@ __all__ = [
     "HistoricalRiskTimelineBuilder",
     "HistoricalSignalCase",
     "MissingInterval",
+    "NativeMonthlyArchiveSpec",
+    "NativeMonthlyBuild",
+    "NativeMonthlyLoader",
+    "NativeMonthlyManifest",
+    "NativeMonthlySummary",
     "ObservedNews",
     "ObservedScheduledEvent",
     "OfficialRiskArchiveBuild",
@@ -116,6 +131,7 @@ __all__ = [
     "WalkForwardFold",
     "WalkForwardPolicy",
     "parse_manifest",
+    "parse_monthly_manifest",
     "parse_risk_manifest",
     "simulate_fixed_case",
     "simulate_managed_case",

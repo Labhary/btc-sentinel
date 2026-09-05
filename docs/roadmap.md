@@ -51,8 +51,13 @@ add files without activating production schedules.
     derivation, and conservative raw official-archive reconstruction are also
     implemented. Present-day Fed/SEC/BLS pages are retained and hashed; records
     cite their raw artifacts, and uncertain BLS availability becomes a required
-    blocking gap. The predeclared representative acquisition and historical
-    verdict are still required before any performance claim.
+    blocking gap. The first strict 2022–2025 run evaluated 140,250 boundaries
+    and returned INCONCLUSIVE with zero signals because declared one-minute
+    outages prevented 50 consecutive derived monthly candles. Native official
+    Binance `1mo` acquisition and transactional monthly replacement are now
+    implemented to resolve that evidence-coverage problem without filling or
+    ignoring gaps. A rerun with the native supplement is still required before
+    any performance claim.
 12. **Free deployment — in progress, inactive**
     D1 runtime-boundary migration, signed bootstrap/health API, idempotent
     cron-to-workflow dispatch, deterministic orchestration core, typed runtime
@@ -61,7 +66,7 @@ add files without activating production schedules.
     atomic signal/outbox commit, bounded outbox recovery, and migration 4.
     The executable job now wires the public collectors, typed repository,
     orchestrator, notification recovery, and health sink behind the hard gate.
-    Representative backtest validation, preview provisioning, encrypted secret
+    Conclusive representative validation, preview provisioning, encrypted secret
     setup, webhook registration, and activation remain incomplete.
 13. **Paper observation**
     Run without money, preserve every result, change rules only through a new

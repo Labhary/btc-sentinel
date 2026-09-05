@@ -58,6 +58,11 @@ def _run(args: argparse.Namespace) -> dict[str, object]:
         market_store = stack.enter_context(HistoricalReplayStore(market_database))
         risk_store = stack.enter_context(HistoricalRiskStore(risk_database))
         market_summary = market_store.import_manifest(args.market_manifest)
+        monthly_summary = (
+            None
+            if args.monthly_manifest is None
+            else market_store.import_native_monthly_manifest(args.monthly_manifest)
+        )
         risk_summary = risk_store.import_manifest(args.risk_manifest)
         risk_start, risk_end = risk_store.coverage()
         if risk_start > args.start or risk_end < args.end:
@@ -69,6 +74,12 @@ def _run(args: argparse.Namespace) -> dict[str, object]:
             "event": "historical_replay_completed",
             "market_dataset_id": market_summary.dataset_id,
             "market_manifest_sha256": market_summary.manifest_sha256,
+            "native_monthly_dataset_id": (
+                None if monthly_summary is None else monthly_summary.dataset_id
+            ),
+            "native_monthly_manifest_sha256": (
+                None if monthly_summary is None else monthly_summary.manifest_sha256
+            ),
             "risk_dataset_id": risk_summary.dataset_id,
             "risk_manifest_sha256": risk_summary.manifest_sha256,
             "coverage_start": iso_utc(args.start),
@@ -93,6 +104,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("risk_manifest", type=Path)
     parser.add_argument("start", type=_utc_argument)
     parser.add_argument("end", type=_utc_argument)
+    parser.add_argument("--monthly-manifest", type=Path)
     parser.add_argument("--work-directory", type=Path)
     args = parser.parse_args(argv)
     try:

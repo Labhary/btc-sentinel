@@ -10,6 +10,7 @@ from decimal import Decimal
 from pathlib import Path
 
 from btc_sentinel.backtesting.dataset import HistoricalDatasetLoader
+from btc_sentinel.backtesting.monthly_dataset import NativeMonthlyLoader, NativeMonthlySummary
 from btc_sentinel.errors import DomainValidationError
 from btc_sentinel.market_data.enums import MarketInterval, MarketVenue
 from btc_sentinel.market_data.models import (
@@ -175,6 +176,7 @@ class HistoricalReplayStore:
     def __init__(self, path: Path) -> None:
         self.path = path
         self.connection = sqlite3.connect(path)
+        self._series_cache: dict[tuple[MarketInterval, int], CandleSeries] = {}
         self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.executescript(
             """
@@ -266,6 +268,44 @@ class HistoricalReplayStore:
             tuple((interval, counts[interval]) for interval in _RESAMPLED_INTERVALS),
         )
 
+    def import_native_monthly_manifest(
+        self,
+        manifest_path: Path,
+        loader: NativeMonthlyLoader | None = None,
+    ) -> NativeMonthlySummary:
+        if not self.connection.execute("SELECT 1 FROM replay_metadata LIMIT 1").fetchone():
+            raise DomainValidationError("One-minute replay history must be imported first")
+        if self.connection.execute(
+            "SELECT 1 FROM replay_metadata WHERE key = 'native_monthly_dataset_id'"
+        ).fetchone():
+            raise DomainValidationError("Native monthly replay history is already initialized")
+        source = loader or NativeMonthlyLoader()
+        base_start, base_end = self.coverage()
+        try:
+            self.connection.execute("BEGIN")
+            self.connection.execute(
+                "DELETE FROM replay_candles WHERE interval = ?",
+                (MarketInterval.ONE_MONTH.value,),
+            )
+            summary = source.visit(manifest_path, self._insert)
+            if summary.coverage_start > base_start or summary.coverage_end < base_end:
+                raise DomainValidationError(
+                    "Native monthly coverage must contain one-minute replay coverage"
+                )
+            self.connection.executemany(
+                "INSERT INTO replay_metadata(key, value) VALUES (?, ?)",
+                (
+                    ("native_monthly_dataset_id", summary.dataset_id),
+                    ("native_monthly_manifest_sha256", summary.manifest_sha256),
+                ),
+            )
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
+        self._series_cache.clear()
+        return summary
+
     def _insert(self, candle: Candle) -> None:
         self.connection.execute(
             """
@@ -292,7 +332,14 @@ class HistoricalReplayStore:
         )
 
     def metadata(self, key: str) -> str:
-        if key not in {"dataset_id", "manifest_sha256", "coverage_start", "coverage_end"}:
+        if key not in {
+            "dataset_id",
+            "manifest_sha256",
+            "coverage_start",
+            "coverage_end",
+            "native_monthly_dataset_id",
+            "native_monthly_manifest_sha256",
+        }:
             raise DomainValidationError("Unknown historical replay metadata key")
         row = self.connection.execute(
             "SELECT value FROM replay_metadata WHERE key = ?",
@@ -354,6 +401,35 @@ class HistoricalReplayStore:
             raise DomainValidationError("Unsupported historical replay interval")
         if not 1 <= limit <= 1_000:
             raise DomainValidationError("Historical replay limit must be between 1 and 1000")
+        latest_row = self.connection.execute(
+            """
+            SELECT open_time_ms, close_time_ms, open, high, low, close, volume,
+                   quote_volume, trade_count, taker_buy_base_volume,
+                   taker_buy_quote_volume
+            FROM replay_candles
+            WHERE interval = ? AND close_time_ms < ?
+            ORDER BY close_time_ms DESC
+            LIMIT 1
+            """,
+            (interval.value, _epoch_milliseconds(as_of)),
+        ).fetchone()
+        if latest_row is None:
+            raise DomainValidationError(f"No completed historical {interval.value} candles")
+        cache_key = (interval, limit)
+        cached = self._series_cache.get(cache_key)
+        latest_open = _from_epoch_milliseconds(int(latest_row[0]))
+        if cached is not None:
+            if latest_open == cached.latest.open_time:
+                return cached
+            expected_open = cached.latest.close_time + timedelta(milliseconds=1)
+            if latest_open == expected_open:
+                latest = self._row(interval, latest_row)
+                values = (*cached.candles, latest)
+                if len(values) > limit:
+                    values = values[-limit:]
+                result = CandleSeries(values)
+                self._series_cache[cache_key] = result
+                return result
         rows = self.connection.execute(
             """
             SELECT open_time_ms, close_time_ms, open, high, low, close, volume,
@@ -361,13 +437,11 @@ class HistoricalReplayStore:
                    taker_buy_quote_volume
             FROM replay_candles
             WHERE interval = ? AND close_time_ms < ?
-            ORDER BY open_time_ms DESC
+            ORDER BY close_time_ms DESC
             LIMIT ?
             """,
             (interval.value, _epoch_milliseconds(as_of), limit),
         ).fetchall()
-        if not rows:
-            raise DomainValidationError(f"No completed historical {interval.value} candles")
         descending = tuple(self._row(interval, row) for row in rows)
         contiguous = [descending[0]]
         newer = descending[0]
@@ -376,7 +450,9 @@ class HistoricalReplayStore:
                 break
             contiguous.append(older)
             newer = older
-        return CandleSeries(tuple(reversed(contiguous)))
+        result = CandleSeries(tuple(reversed(contiguous)))
+        self._series_cache[cache_key] = result
+        return result
 
     def market_view(self, as_of: datetime, *, lookback: int = 200) -> HistoricalMarketView:
         now = ensure_utc(as_of)

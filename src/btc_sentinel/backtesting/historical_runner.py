@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
 
+from btc_sentinel.analysis.engine import ANALYSIS_INTERVALS, MultiTimeframeAnalyzer
+from btc_sentinel.analysis.models import TimeframeAnalysis
 from btc_sentinel.backtesting.engine import BacktestEngine
 from btc_sentinel.backtesting.models import (
     BacktestComparisonReport,
@@ -19,7 +21,9 @@ from btc_sentinel.backtesting.simulator import IncrementalTradeReplay
 from btc_sentinel.domain.enums import OutcomeVariant
 from btc_sentinel.domain.ids import format_signal_id
 from btc_sentinel.errors import DomainValidationError
-from btc_sentinel.market_data.enums import MarketInterval
+from btc_sentinel.market_data.enums import MarketInterval, MarketVenue
+from btc_sentinel.market_data.errors import MarketDataValidationError
+from btc_sentinel.market_data.models import MarketSnapshot
 from btc_sentinel.news.models import CoverageIssue, RiskAssessment, RiskDecision
 from btc_sentinel.signals import SignalDecision, SignalEngine, SignalHistory
 from btc_sentinel.time_utils import ensure_utc, to_casablanca
@@ -33,6 +37,35 @@ class HistoricalRiskProvider(Protocol):
     performance_eligible: bool
 
     def assessment_at(self, as_of: datetime) -> RiskAssessment: ...
+
+
+class _HistoricalCachingAnalyzer(MultiTimeframeAnalyzer):
+    """Reuse an interval analysis while its immutable replay series is unchanged."""
+
+    def __init__(self) -> None:
+        self._cache: dict[MarketInterval, tuple[object, TimeframeAnalysis]] = {}
+        self._error_cache: dict[MarketInterval, tuple[object, str]] = {}
+
+    def _analyze_timeframes(self, snapshot: MarketSnapshot) -> list[TimeframeAnalysis]:
+        result: list[TimeframeAnalysis] = []
+        for interval in ANALYSIS_INTERVALS:
+            series = snapshot.series_for(MarketVenue.SPOT, interval)
+            failed = self._error_cache.get(interval)
+            if failed is not None and failed[0] is series:
+                raise ValueError(failed[1])
+            cached = self._cache.get(interval)
+            if cached is not None and cached[0] is series:
+                analysis = cached[1]
+            else:
+                try:
+                    analysis = self._analyze_timeframe(snapshot, interval)
+                except (MarketDataValidationError, ValueError) as exc:
+                    self._error_cache[interval] = (series, str(exc))
+                    raise
+                self._cache[interval] = (series, analysis)
+                self._error_cache.pop(interval, None)
+            result.append(analysis)
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,7 +170,7 @@ class HistoricalReplayRunner:
     """Evaluate every 15-minute boundary and stream future lifecycle candles."""
 
     def __init__(self, signal_engine: SignalEngine | None = None) -> None:
-        self.signal_engine = signal_engine or SignalEngine()
+        self.signal_engine = signal_engine or SignalEngine(analyzer=_HistoricalCachingAnalyzer())
 
     def run(
         self,
