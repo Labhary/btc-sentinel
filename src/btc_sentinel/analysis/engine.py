@@ -260,26 +260,25 @@ class MultiTimeframeAnalyzer:
         )
 
     def _analyze_timeframes(self, snapshot: MarketSnapshot) -> list[TimeframeAnalysis]:
-        result: list[TimeframeAnalysis] = []
-        for interval in ANALYSIS_INTERVALS:
-            series = snapshot.series_for(MarketVenue.SPOT, interval)
-            if not series.latest.is_closed_at(snapshot.captured_at):
-                raise ValueError(f"{interval.value} analysis received an incomplete candle")
-            indicators = calculate_indicators(series)
-            structure = analyze_structure(series, indicators.atr_14)
-            indicator_direction = _indicator_direction(indicators, series.latest.close)
-            direction = _timeframe_direction(indicator_direction, structure.direction)
-            regime = _regime(indicators, indicator_direction, structure.direction)
-            reasons = (
-                f"indicator_direction:{indicator_direction.value}",
-                f"structure_direction:{structure.direction.value}",
-                f"adx:{indicators.adx_14}",
-                f"normalized_atr:{indicators.normalized_atr}",
-            )
-            result.append(
-                TimeframeAnalysis(interval, direction, regime, indicators, structure, reasons)
-            )
-        return result
+        return [self._analyze_timeframe(snapshot, interval) for interval in ANALYSIS_INTERVALS]
+
+    @staticmethod
+    def _analyze_timeframe(snapshot: MarketSnapshot, interval: MarketInterval) -> TimeframeAnalysis:
+        series = snapshot.series_for(MarketVenue.SPOT, interval)
+        if not series.latest.is_closed_at(snapshot.captured_at):
+            raise ValueError(f"{interval.value} analysis received an incomplete candle")
+        indicators = calculate_indicators(series)
+        structure = analyze_structure(series, indicators.atr_14)
+        indicator_direction = _indicator_direction(indicators, series.latest.close)
+        direction = _timeframe_direction(indicator_direction, structure.direction)
+        regime = _regime(indicators, indicator_direction, structure.direction)
+        reasons = (
+            f"indicator_direction:{indicator_direction.value}",
+            f"structure_direction:{structure.direction.value}",
+            f"adx:{indicators.adx_14}",
+            f"normalized_atr:{indicators.normalized_atr}",
+        )
+        return TimeframeAnalysis(interval, direction, regime, indicators, structure, reasons)
 
     @staticmethod
     def _overall_regime(

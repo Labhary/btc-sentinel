@@ -1,9 +1,14 @@
 # Backtesting policy
 
-Phase 11 supplies a deterministic backtesting framework. It does **not** ship a
-representative historical dataset, and no real performance verdict has been
-earned yet. The current >60% strict win-rate objective at 2R or better is
+Phase 11 supplies a deterministic backtesting framework. The first strict
+2022–2025 official-archive run evaluated 140,250 boundaries but produced zero
+eligible signals because declared one-minute outages prevented the derived
+monthly series from ever reaching 50 consecutive candles. Its verdict is
+**INCONCLUSIVE**. The current >60% strict win-rate objective at 2R or better is
 therefore **unproven**, not passed.
+
+The immutable inputs and rejection summary are preserved in
+[`representative-backtest-2022-2025.md`](representative-backtest-2022-2025.md).
 
 ## Dataset contract
 
@@ -76,6 +81,25 @@ checksum-bound ledger. The suspect row and the declared absent interval are
 excluded from analysis. Any undeclared, altered, overlapping, late, or
 misaligned timestamp still rejects the dataset.
 
+Version `0.12.13` adds a separate official native-monthly supplement. Binance
+names this file interval `1mo`; the runtime still maps it to the analysis
+interval `1M`. This avoids synthesizing a monthly candle across missing
+one-minute execution data. Build sufficient monthly warm-up from the beginning
+of BTCUSDT archive history:
+
+```bash
+btc-sentinel-fetch-monthly-history \
+  2017-08 \
+  2026-01 \
+  ./btc-native-monthly-2017-2025 \
+  --dataset-id binance-vision-btcusdt-native-monthly-2017-2025-v1
+```
+
+Each ZIP must contain exactly one exact calendar-month candle. Fixed host/path,
+timestamp-unit, ZIP, row-shape, value, coverage, and SHA-256 checks apply before
+the native candles transactionally replace only the derived `1M` rows. Native
+coverage must contain the complete one-minute replay coverage.
+
 ## Point-in-time candle index
 
 Version `0.12.5` streams a validated manifest into a disk-backed SQLite replay
@@ -91,6 +115,13 @@ only candles whose close is strictly earlier. Exhaustive candidate times come
 from completed 15-minute boundaries. Imports are transactional: a late hash,
 continuity, coverage, or row failure rolls back every inserted candle and all
 metadata.
+
+Sequential replay caches immutable series and timeframe analyses only while the
+newest completed candle is unchanged. Queries use the indexed close-time order.
+These optimizations do not alter indicators, thresholds, candidate order, or
+outcomes. Across a declared outage, queries expose only the latest contiguous
+suffix; an open trade encountering unavailable future minutes is marked
+unresolved.
 
 The index supplies historical Spot candle views only. It does not invent
 unavailable point-in-time order books, derivatives history, news, or macro
@@ -224,7 +255,8 @@ btc-sentinel-run-history \
   path/to/market-manifest.json \
   path/to/risk-manifest.json \
   2022-01-01T00:00:00Z \
-  2026-01-01T00:00:00Z
+  2026-01-01T00:00:00Z \
+  --monthly-manifest path/to/monthly-manifest.json
 ```
 
 The command imports both inputs transactionally into temporary disk-backed
@@ -233,6 +265,14 @@ completed 15-minute candidate boundary, and emits one JSON record with separate
 fixed and managed verdicts. `--work-directory` may retain the indexes for audit,
 but existing database paths are never overwritten. A successful command means
 the run completed; the JSON verdict may still be `FAILED` or `INCONCLUSIVE`.
+Without the native monthly supplement, declared one-minute outages can leave
+the long-horizon analysis without its fixed 50-candle warm-up.
+
+The manual `Representative historical evaluation` GitHub Actions workflow runs
+that exact acquisition and evaluation sequence with read-only repository
+permissions. It retains the downloaded evidence, manifests, and JSON report for
+90 days even when a later step fails. It requires no exchange or deployment
+secret and must never be changed to tune the frozen evaluation window.
 
 ## Conservative simulation
 

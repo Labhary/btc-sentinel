@@ -8,6 +8,7 @@ from btc_sentinel.backtesting import (
     HistoricalMarketView,
     HistoricalReplayRunner,
 )
+from btc_sentinel.backtesting.historical_runner import _HistoricalCachingAnalyzer
 from btc_sentinel.errors import DomainValidationError
 from btc_sentinel.market_data.enums import MarketInterval, MarketVenue
 from btc_sentinel.market_data.models import Candle
@@ -86,6 +87,16 @@ class GappedReplayStore(FakeReplayStore):
 
 
 class HistoricalRunnerTests(TestCase):
+    def test_historical_analyzer_reuses_identical_timeframe_series(self) -> None:
+        snapshot = analysis_snapshot()
+        analyzer = _HistoricalCachingAnalyzer()
+
+        first = analyzer.analyze(snapshot)
+        second = analyzer.analyze(snapshot)
+
+        self.assertEqual(second, first)
+        self.assertEqual(len(analyzer._cache), 6)
+
     def test_exhaustive_candidate_creates_both_tracks_and_expires_without_fill(self) -> None:
         store = FakeReplayStore()
         run = HistoricalReplayRunner().run(store, START, END, ClearRiskProvider())

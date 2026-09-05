@@ -30,6 +30,11 @@ class FakeStore:
             return SimpleNamespace(dataset_id="risk-v1", manifest_sha256="b" * 64)
         return SimpleNamespace(dataset_id="market-v1", manifest_sha256="a" * 64)
 
+    def import_native_monthly_manifest(self, path: Path):
+        if path.name != "monthly.json":
+            raise AssertionError("unexpected monthly manifest")
+        return SimpleNamespace(dataset_id="monthly-v1", manifest_sha256="c" * 64)
+
     def coverage(self):
         return START, END
 
@@ -84,6 +89,8 @@ class HistoricalFullJobTests(TestCase):
                 str(Path(directory) / "risk.json"),
                 START.isoformat(),
                 END.isoformat(),
+                "--monthly-manifest",
+                str(Path(directory) / "monthly.json"),
             ]
             with (
                 patch("btc_sentinel.backtesting.full_job.HistoricalReplayStore", FakeStore),
@@ -98,6 +105,7 @@ class HistoricalFullJobTests(TestCase):
         self.assertEqual(payload["event"], "historical_replay_completed")
         self.assertEqual(payload["market_dataset_id"], "market-v1")
         self.assertEqual(payload["risk_dataset_id"], "risk-v1")
+        self.assertEqual(payload["native_monthly_dataset_id"], "monthly-v1")
         self.assertEqual(payload["managed"]["verdict"], "PASSED")
         self.assertEqual(payload["managed"]["statistics"]["strict_win_rate_percent"], "61")
 

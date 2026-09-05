@@ -14,17 +14,21 @@ The historical path now includes immutable archive preflight plus a
 disk-backed, point-in-time multi-timeframe Spot candle index and an exhaustive
 streaming signal/lifecycle runner. The runner blocks when historical news/macro
 coverage is missing. A checksum-bound continuous risk-timeline store now
-enforces exact-time evidence and required-source failures, but no representative
-representative source archive has been replayed. The complete historical command is
+enforces exact-time evidence and required-source failures. A representative
+official-source archive was replayed across 2022–2025, but the result was
+INCONCLUSIVE with zero signals: declared one-minute outages prevented the
+derived monthly series from reaching the fixed 50-candle requirement. The
+complete historical command is
 wired, and the public monthly Binance Vision market archive can now be acquired
 without credentials. The historical risk timeline can now be derived from
 checksum-bound normalized official-source evidence. The conservative archive
 builder now downloads and retains the raw Federal Reserve, SEC, and BLS pages,
 binds normalized records to those hashes, and turns uncertain BLS schedule
 availability—including a missing last-modified date—into blocking gaps. A live
-2024 smoke reconstruction passed, but
-the predeclared 2022–2025 representative replay has not run. This is engineering
-readiness, not performance evidence.
+2024 smoke reconstruction passed. Native Binance `1mo` acquisition and replay
+replacement are now available so the rerun can obtain long-horizon warm-up
+without bridging one-minute outages. This is engineering readiness, not
+performance evidence.
 
 Deploying the current branch would therefore be premature. A green CI run
 proves configuration and boundary behavior; it does not prove a running bot.

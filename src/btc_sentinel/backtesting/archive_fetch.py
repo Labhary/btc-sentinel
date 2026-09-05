@@ -27,7 +27,6 @@ from btc_sentinel.backtesting.dataset import (
 _ORIGIN = "https://data.binance.vision"
 _ARCHIVE_PREFIX = "/data/spot/monthly/klines/BTCUSDT/1m/"
 _MICROSECOND_CUTOFF = datetime(2025, 1, 1, tzinfo=UTC)
-_ARCHIVE_NAME = re.compile(r"BTCUSDT-1m-\d{4}-\d{2}\.zip")
 _DATASET_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}")
 
 
@@ -54,7 +53,11 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def _validate_url(url: str) -> None:
+def _validate_url(url: str, interval: str) -> None:
+    if interval not in {"1m", "1mo"}:
+        raise HistoricalDataError("Archive download interval is not allowlisted")
+    prefix = f"/data/spot/monthly/klines/BTCUSDT/{interval}/"
+    archive_name = re.compile(rf"BTCUSDT-{interval}-\d{{4}}-\d{{2}}\.zip")
     parsed = urlsplit(url)
     if (
         parsed.scheme != "https"
@@ -63,8 +66,8 @@ def _validate_url(url: str) -> None:
         or parsed.password
         or parsed.query
         or parsed.fragment
-        or not parsed.path.startswith(_ARCHIVE_PREFIX)
-        or not _ARCHIVE_NAME.fullmatch(parsed.path.removeprefix(_ARCHIVE_PREFIX))
+        or not parsed.path.startswith(prefix)
+        or not archive_name.fullmatch(parsed.path.removeprefix(prefix))
     ):
         raise HistoricalDataError("Archive download URL is outside the fixed Binance path")
 
@@ -78,20 +81,24 @@ class UrllibArchiveDownloader:
         maximum_bytes: int = 512_000_000,
         timeout_seconds: float = 30,
         maximum_attempts: int = 3,
+        archive_interval: str = "1m",
         sleeper: Callable[[float], None] = time.sleep,
     ) -> None:
         if maximum_bytes < 1 or not 0 < timeout_seconds <= 60:
             raise ValueError("Archive download size and timeout limits are invalid")
         if not 1 <= maximum_attempts <= 5:
             raise ValueError("Archive download attempts must be between 1 and 5")
+        if archive_interval not in {"1m", "1mo"}:
+            raise ValueError("Archive download interval is not allowlisted")
         self.maximum_bytes = maximum_bytes
         self.timeout_seconds = timeout_seconds
         self.maximum_attempts = maximum_attempts
+        self.archive_interval = archive_interval
         self.sleeper = sleeper
         self.opener = build_opener(_NoRedirect())
 
     def download(self, url: str, destination: Path) -> ArchiveDownload:
-        _validate_url(url)
+        _validate_url(url, self.archive_interval)
         if destination.exists():
             raise HistoricalDataError("Archive download destination already exists")
         final_error: Exception | None = None

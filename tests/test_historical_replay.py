@@ -14,6 +14,7 @@ from btc_sentinel.backtesting import (
     HistoricalMarketView,
     HistoricalReplayStore,
 )
+from btc_sentinel.backtesting.monthly_dataset import NativeMonthlySummary
 from btc_sentinel.backtesting.replay import _Bucket, _bucket_open
 from btc_sentinel.errors import DomainValidationError
 from btc_sentinel.market_data.enums import MarketInterval, MarketVenue
@@ -172,6 +173,71 @@ class HistoricalReplayTests(TestCase):
             tuple(candle.open_time for candle in series.candles),
             (start + timedelta(minutes=30), start + timedelta(minutes=45)),
         )
+
+    def test_sequential_queries_reuse_and_advance_the_immutable_series(self) -> None:
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        path = self._manifest(start, list(range(30)))
+
+        with HistoricalReplayStore(self.root / "replay.sqlite3") as store:
+            store.import_manifest(path)
+            first = store.series_at(
+                MarketInterval.FIFTEEN_MINUTES,
+                start + timedelta(minutes=15),
+            )
+            repeated = store.series_at(
+                MarketInterval.FIFTEEN_MINUTES,
+                start + timedelta(minutes=15),
+            )
+            advanced = store.series_at(
+                MarketInterval.FIFTEEN_MINUTES,
+                start + timedelta(minutes=30),
+            )
+
+        self.assertIs(repeated, first)
+        self.assertEqual(len(first.candles), 1)
+        self.assertEqual(len(advanced.candles), 2)
+        self.assertIs(advanced.candles[0], first.candles[0])
+
+    def test_native_monthly_import_replaces_derived_months_atomically(self) -> None:
+        start = datetime(2024, 1, 1, tzinfo=UTC)
+        path = self._manifest(start, list(range(15)))
+        monthly = Candle(
+            venue=MarketVenue.SPOT,
+            interval=MarketInterval.ONE_MONTH,
+            open_time=start,
+            close_time=MarketInterval.ONE_MONTH.expected_close_time(start),
+            open=Decimal(100),
+            high=Decimal(120),
+            low=Decimal(90),
+            close=Decimal(110),
+            volume=Decimal(10),
+            quote_volume=Decimal(1000),
+            trade_count=5,
+            taker_buy_base_volume=Decimal(6),
+            taker_buy_quote_volume=Decimal(600),
+        )
+
+        class Loader:
+            def visit(self, _path, visitor):
+                visitor(monthly)
+                return NativeMonthlySummary(
+                    "native-monthly-test-v1",
+                    "a" * 64,
+                    start,
+                    datetime(2024, 2, 1, tzinfo=UTC),
+                    1,
+                )
+
+        with HistoricalReplayStore(self.root / "replay.sqlite3") as store:
+            store.import_manifest(path)
+            summary = store.import_native_monthly_manifest(self.root / "monthly.json", Loader())
+            series = store.series_at(
+                MarketInterval.ONE_MONTH,
+                datetime(2024, 2, 1, tzinfo=UTC),
+            )
+
+        self.assertEqual(summary.dataset_id, "native-monthly-test-v1")
+        self.assertEqual(series.candles, (monthly,))
 
     def test_calendar_buckets_use_monday_and_month_start_utc(self) -> None:
         value = datetime(2024, 2, 29, 23, 59, tzinfo=UTC)
