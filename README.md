@@ -36,6 +36,10 @@ market data and rules, not from a language model.
 > availability cannot be established.
 > The immutable inputs and both attempts are recorded in
 > [the representative backtest record](docs/representative-backtest-2022-2025.md).
+> The separately versioned next research cycle is constrained by the
+> [rules v0.7 protocol](docs/rules-v0.7-research-protocol.md): 2022–2025 is
+> closed to tuning, and 2026 is reserved for one untouched holdout evaluation
+> after the strategy commit is frozen.
 > This must not yet be treated as a live trading tool.
 
 ## Non-negotiable behavior

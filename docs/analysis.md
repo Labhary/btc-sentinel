@@ -55,6 +55,11 @@ The 0–100 setup-quality score measures agreement, never probability:
 Only a group aligned with the higher-timeframe bias contributes its directional
 weight. Trend indicators within one timeframe are deliberately combined before
 group scoring, so EMA, MACD, RSI, and structure cannot each masquerade as an
-independent vote. Missing optional derivatives context degrades the result.
+independent vote. The score is normalized across weights that are actually
+available, so an unavailable optional derivatives group does not silently turn
+80/100 into an effective 88.9% agreement requirement. Missing optional
+derivatives context still degrades the result and later reduces suggested paper
+risk; available neutral or conflicting derivatives evidence remains in the
+denominator and therefore lowers the score.
 Major-timeframe conflict, abnormal volatility, or unreliable higher-timeframe
 bias creates an explicit no-trade reason and caps quality below 60.

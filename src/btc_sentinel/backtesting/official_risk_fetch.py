@@ -29,6 +29,9 @@ _FED_ARCHIVE = re.compile(r"/newsevents/pressreleases/(\d{4})-press-fomc\.htm")
 _FED_RELEASE = re.compile(r"/newsevents/pressreleases/monetary\d{8}[a-z]\.htm")
 _BLS_ARCHIVE = re.compile(r"/schedule/(\d{4})/home\.htm")
 _SEC_RELEASE = re.compile(r"/newsroom/press-releases/(\d{4})-[A-Za-z0-9-]+")
+_SEC_ARCHIVE_PATH_EXCEPTIONS = {
+    (2021, "/newsroom/press-releases/22021-67"),
+}
 _DATASET_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _EASTERN = ZoneInfo("America/New_York")
@@ -254,18 +257,30 @@ def _fed_record(payload: bytes, url: str, fallback_title: str) -> dict[str, obje
 
 def _sec_records(payload: bytes, year: int) -> tuple[dict[str, object], ...]:
     document = _document(payload)
-    releases = [
-        (urljoin(_SEC_ORIGIN, href), title)
-        for href, title in document.links
-        if _SEC_RELEASE.fullmatch(urlsplit(urljoin(_SEC_ORIGIN, href)).path)
-        and urlsplit(urljoin(_SEC_ORIGIN, href)).path.startswith(
+    releases = []
+    for href, title in document.links:
+        url = urljoin(_SEC_ORIGIN, href)
+        parsed_url = urlsplit(url)
+        path = parsed_url.path
+        if (
+            parsed_url.scheme != "https"
+            or parsed_url.netloc != "www.sec.gov"
+            or parsed_url.query
+            or parsed_url.fragment
+        ):
+            continue
+        ordinary = _SEC_RELEASE.fullmatch(path) and path.startswith(
             f"/newsroom/press-releases/{year}-"
         )
-    ]
+        if ordinary or (year, path) in _SEC_ARCHIVE_PATH_EXCEPTIONS:
+            releases.append((url, title))
     timestamps = []
     for value, _ in document.times:
         try:
-            parsed = datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if parsed.tzinfo is None or parsed.utcoffset() is None:
+                raise ValueError("publication timestamp must include a timezone")
+            parsed = parsed.astimezone(UTC)
         except ValueError as exc:
             raise HistoricalDataError(
                 "SEC archive contains an invalid publication timestamp"
