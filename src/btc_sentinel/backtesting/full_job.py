@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from btc_sentinel.backtesting.historical_runner import HistoricalReplayRunner
-from btc_sentinel.backtesting.models import BacktestReport
+from btc_sentinel.backtesting.models import BacktestReport, WalkForwardPolicy
 from btc_sentinel.backtesting.replay import HistoricalReplayStore
 from btc_sentinel.backtesting.risk_history import HistoricalRiskStore
 from btc_sentinel.errors import DomainValidationError
@@ -37,6 +37,15 @@ def _report_payload(report: BacktestReport) -> dict[str, object]:
         "candidate_signals": report.candidate_count,
         "no_fill": report.no_fill_count,
         "unresolved": report.unresolved_count,
+        "score_threshold_sensitivity": [
+            {
+                "threshold": item.threshold,
+                "resolved": item.resolved,
+                "average_r": None if item.average_r is None else str(item.average_r),
+                "net_r": str(item.net_r),
+            }
+            for item in report.sensitivity
+        ],
         "reasons": report.reasons,
     }
 
@@ -68,8 +77,16 @@ def _run(args: argparse.Namespace) -> dict[str, object]:
         if risk_start > args.start or risk_end < args.end:
             raise DomainValidationError("Historical risk coverage does not contain replay range")
 
-        run = HistoricalReplayRunner().run(market_store, args.start, args.end, risk_store)
-        comparison = run.evaluate(args.end)
+        policy = WalkForwardPolicy()
+        runs = HistoricalReplayRunner().run_thresholds(
+            market_store,
+            args.start,
+            args.end,
+            policy.score_thresholds,
+            risk_store,
+        )
+        run = runs[policy.primary_score_threshold]
+        comparison = run.evaluate(args.end, policy, runs)
         return {
             "event": "historical_replay_completed",
             "market_dataset_id": market_summary.dataset_id,
@@ -87,6 +104,15 @@ def _run(args: argparse.Namespace) -> dict[str, object]:
             "evaluated_boundaries": run.candidate_count,
             "created_signals": run.created_signal_count,
             "rejection_counts": dict(run.rejection_counts),
+            "sensitivity_method": "independent_state_paths_common_primary_oos_windows",
+            "threshold_created_signals": {
+                str(threshold): threshold_run.created_signal_count
+                for threshold, threshold_run in runs.items()
+            },
+            "threshold_rejection_counts": {
+                str(threshold): dict(threshold_run.rejection_counts)
+                for threshold, threshold_run in runs.items()
+            },
             "fixed": _report_payload(comparison.fixed),
             "managed": _report_payload(comparison.managed),
             "completed_pairs": comparison.completed_pairs,

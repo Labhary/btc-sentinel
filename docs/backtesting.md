@@ -319,6 +319,11 @@ The default chronological policy uses 120 candidate cases for training, a
 four-case purge gap, and 40 cases for each non-overlapping test window. The
 primary score threshold is fixed in advance at 80. Thresholds 75, 80, and 85
 are reported as sensitivity checks rather than chosen after seeing test data.
+The exhaustive historical job replays each threshold with its own active-trade
+and cooldown state, then measures all three paths inside the primary path's
+same out-of-sample time windows. Filtering an 80-threshold signal list cannot
+stand in for these independent paths because an earlier 75-threshold signal or
+a rejected 80-threshold signal can change every later admission decision.
 
 A run is `INCONCLUSIVE` unless it contains at least:
 

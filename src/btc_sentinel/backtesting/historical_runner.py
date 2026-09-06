@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections import Counter
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Protocol
 
@@ -136,6 +137,7 @@ class HistoricalReplayRun:
         self,
         generated_at: datetime,
         policy: WalkForwardPolicy | None = None,
+        sensitivity_runs: Mapping[int, HistoricalReplayRun] | None = None,
     ) -> BacktestComparisonReport:
         if not self.performance_eligible:
             raise DomainValidationError(
@@ -158,12 +160,56 @@ class HistoricalReplayRun:
             ),
             exhaustive_candidate_scan=True,
         )
-        return BacktestEngine(policy).compare_trades(
+        selected_policy = policy or WalkForwardPolicy()
+        fixed_sensitivity: dict[int, tuple[BacktestTrade, ...]] | None = None
+        managed_sensitivity: dict[int, tuple[BacktestTrade, ...]] | None = None
+        if sensitivity_runs is not None:
+            if tuple(sorted(sensitivity_runs)) != selected_policy.score_thresholds:
+                raise DomainValidationError(
+                    "Historical sensitivity runs must match every declared score threshold"
+                )
+            for run in sensitivity_runs.values():
+                self._validate_matching_sensitivity_run(run)
+            fixed_sensitivity = {
+                threshold: sensitivity_runs[threshold].fixed_trades
+                for threshold in selected_policy.score_thresholds
+            }
+            managed_sensitivity = {
+                threshold: sensitivity_runs[threshold].managed_trades
+                for threshold in selected_policy.score_thresholds
+            }
+        return BacktestEngine(selected_policy).compare_trades(
             self.fixed_trades,
             self.managed_trades,
             ensure_utc(generated_at),
             run_spec,
+            fixed_sensitivity,
+            managed_sensitivity,
         )
+
+    def _validate_matching_sensitivity_run(self, other: HistoricalReplayRun) -> None:
+        if not other.performance_eligible:
+            raise DomainValidationError("Historical sensitivity run is not performance eligible")
+        fields = (
+            "dataset_id",
+            "strategy_version",
+            "coverage_start",
+            "coverage_end",
+            "candidate_count",
+            "risk_source_coverage",
+            "excluded_features",
+        )
+        if any(getattr(other, name) != getattr(self, name) for name in fields):
+            raise DomainValidationError("Historical sensitivity runs do not describe one replay")
+
+
+@dataclass(slots=True)
+class _ThresholdReplayState:
+    fixed: list[BacktestTrade]
+    managed: list[BacktestTrade]
+    rejections: Counter[str]
+    last_signal_at: datetime | None = None
+    managed_active_until: datetime | None = None
 
 
 class HistoricalReplayRunner:
@@ -179,6 +225,53 @@ class HistoricalReplayRunner:
         end: datetime,
         risk_provider: HistoricalRiskProvider | None = None,
     ) -> HistoricalReplayRun:
+        threshold = self.signal_engine.policy.minimum_setup_score
+        return self._run_with_engines(
+            store,
+            start,
+            end,
+            risk_provider,
+            {threshold: self.signal_engine},
+        )[threshold]
+
+    def run_thresholds(
+        self,
+        store: HistoricalReplayStore,
+        start: datetime,
+        end: datetime,
+        thresholds: tuple[int, ...],
+        risk_provider: HistoricalRiskProvider | None = None,
+    ) -> dict[int, HistoricalReplayRun]:
+        """Replay each threshold with independent active/cooldown state."""
+
+        if tuple(sorted(set(thresholds))) != thresholds or not thresholds:
+            raise DomainValidationError(
+                "Historical replay thresholds must be unique and increasing"
+            )
+        if not all(60 <= threshold <= 100 for threshold in thresholds):
+            raise DomainValidationError("Historical replay thresholds must be between 60 and 100")
+        analyzer = self.signal_engine.analyzer
+        engines: dict[int, SignalEngine] = {}
+        for threshold in thresholds:
+            engine = SignalEngine(
+                policy=replace(
+                    self.signal_engine.policy,
+                    minimum_setup_score=threshold,
+                ),
+                analyzer=analyzer,
+            )
+            engine.strategy_version = self.signal_engine.strategy_version
+            engines[threshold] = engine
+        return self._run_with_engines(store, start, end, risk_provider, engines)
+
+    def _run_with_engines(
+        self,
+        store: HistoricalReplayStore,
+        start: datetime,
+        end: datetime,
+        risk_provider: HistoricalRiskProvider | None,
+        engines: Mapping[int, SignalEngine],
+    ) -> dict[int, HistoricalReplayRun]:
         first = ensure_utc(start)
         stop = ensure_utc(end)
         coverage_start, coverage_end = store.coverage()
@@ -191,53 +284,59 @@ class HistoricalReplayRunner:
             raise DomainValidationError("Performance-eligible risk coverage cannot be empty")
 
         candidates = store.candidate_times(first, stop)
-        fixed: list[BacktestTrade] = []
-        managed: list[BacktestTrade] = []
-        rejections: Counter[str] = Counter()
-        last_signal_at: datetime | None = None
-        managed_active_until: datetime | None = None
+        states = {threshold: _ThresholdReplayState([], [], Counter()) for threshold in engines}
 
         for sequence, candidate in enumerate(candidates, start=1):
             try:
                 view = store.market_view(candidate)
             except DomainValidationError:
-                rejections["historical market warm-up is incomplete"] += 1
+                for state in states.values():
+                    state.rejections["historical market warm-up is incomplete"] += 1
                 continue
             risk = provider.assessment_at(candidate)
             self._validate_risk(candidate, risk)
-            active = managed_active_until is not None and candidate < managed_active_until
             signal_id = format_signal_id(to_casablanca(candidate).date(), sequence)
-            evaluation = self.signal_engine.evaluate(
-                signal_id,
-                view,
-                risk,
-                candidate,
-                SignalHistory(last_signal_at, active),
-            )
-            if evaluation.decision is SignalDecision.NO_SIGNAL:
-                rejections.update(evaluation.rejection_reasons)
-                continue
-            assert evaluation.signal is not None
-            fixed_trade, managed_trade = self._simulate(store, evaluation.signal, stop)
-            fixed.append(fixed_trade)
-            managed.append(managed_trade)
-            last_signal_at = candidate
-            managed_active_until = managed_trade.terminal_at
+            for threshold, engine in engines.items():
+                state = states[threshold]
+                active = (
+                    state.managed_active_until is not None
+                    and candidate < state.managed_active_until
+                )
+                evaluation = engine.evaluate(
+                    signal_id,
+                    view,
+                    risk,
+                    candidate,
+                    SignalHistory(state.last_signal_at, active),
+                )
+                if evaluation.decision is SignalDecision.NO_SIGNAL:
+                    state.rejections.update(evaluation.rejection_reasons)
+                    continue
+                assert evaluation.signal is not None
+                fixed_trade, managed_trade = self._simulate(store, evaluation.signal, stop)
+                state.fixed.append(fixed_trade)
+                state.managed.append(managed_trade)
+                state.last_signal_at = candidate
+                state.managed_active_until = managed_trade.terminal_at
 
-        return HistoricalReplayRun(
-            dataset_id=store.metadata("dataset_id"),
-            strategy_version=self.signal_engine.strategy_version,
-            coverage_start=first,
-            coverage_end=stop,
-            candidate_count=len(candidates),
-            created_signal_count=len(fixed),
-            fixed_trades=tuple(fixed),
-            managed_trades=tuple(managed),
-            rejection_counts=tuple(sorted(rejections.items())),
-            risk_source_coverage=provider.source_coverage,
-            excluded_features=provider.excluded_features,
-            performance_eligible=provider.performance_eligible,
-        )
+        dataset_id = store.metadata("dataset_id")
+        return {
+            threshold: HistoricalReplayRun(
+                dataset_id=dataset_id,
+                strategy_version=engines[threshold].strategy_version,
+                coverage_start=first,
+                coverage_end=stop,
+                candidate_count=len(candidates),
+                created_signal_count=len(state.fixed),
+                fixed_trades=tuple(state.fixed),
+                managed_trades=tuple(state.managed),
+                rejection_counts=tuple(sorted(state.rejections.items())),
+                risk_source_coverage=provider.source_coverage,
+                excluded_features=provider.excluded_features,
+                performance_eligible=provider.performance_eligible,
+            )
+            for threshold, state in states.items()
+        }
 
     @staticmethod
     def _validate_risk(candidate: datetime, risk: RiskAssessment) -> None:

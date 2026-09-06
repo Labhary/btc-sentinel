@@ -53,6 +53,26 @@ def _report(variant: str):
         candidate_count=100,
         no_fill_count=0,
         unresolved_count=0,
+        sensitivity=(
+            SimpleNamespace(
+                threshold=75,
+                resolved=101,
+                average_r=None,
+                net_r=0,
+            ),
+            SimpleNamespace(
+                threshold=80,
+                resolved=100,
+                average_r=1,
+                net_r=100,
+            ),
+            SimpleNamespace(
+                threshold=85,
+                resolved=90,
+                average_r=2,
+                net_r=180,
+            ),
+        ),
         reasons=(),
     )
 
@@ -62,8 +82,8 @@ class FakeRun:
     created_signal_count = 100
     rejection_counts = (("score below threshold", 20),)
 
-    def evaluate(self, generated_at: datetime):
-        if generated_at != END:
+    def evaluate(self, generated_at: datetime, policy, runs):
+        if generated_at != END or tuple(runs) != policy.score_thresholds:
             raise AssertionError("unexpected evaluation time")
         return SimpleNamespace(
             fixed=_report("FIXED"),
@@ -74,10 +94,10 @@ class FakeRun:
 
 
 class FakeRunner:
-    def run(self, market_store, start, end, risk_store):
+    def run_thresholds(self, market_store, start, end, thresholds, risk_store):
         if (start, end) != (START, END) or market_store is risk_store:
             raise AssertionError("unexpected runner inputs")
-        return FakeRun()
+        return {threshold: FakeRun() for threshold in thresholds}
 
 
 class HistoricalFullJobTests(TestCase):
@@ -108,6 +128,8 @@ class HistoricalFullJobTests(TestCase):
         self.assertEqual(payload["native_monthly_dataset_id"], "monthly-v1")
         self.assertEqual(payload["managed"]["verdict"], "PASSED")
         self.assertEqual(payload["managed"]["statistics"]["strict_win_rate_percent"], "61")
+        self.assertEqual(payload["threshold_created_signals"], {"75": 100, "80": 100, "85": 100})
+        self.assertEqual(payload["fixed"]["score_threshold_sensitivity"][0]["threshold"], 75)
 
     def test_existing_database_fails_closed_without_overwrite(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

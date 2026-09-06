@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Mapping
 from datetime import datetime
 from decimal import Decimal
 from itertools import pairwise
@@ -95,37 +96,33 @@ class BacktestEngine:
         trades: tuple[BacktestTrade, ...],
         generated_at: datetime,
         run_spec: BacktestRunSpec,
+        sensitivity_trades: Mapping[int, tuple[BacktestTrade, ...]] | None = None,
     ) -> BacktestReport:
         now = ensure_utc(generated_at)
-        ordered = tuple(sorted(trades, key=lambda trade: (trade.created_at, trade.signal_id)))
-        if tuple(trades) != ordered:
-            raise DomainValidationError("Backtest trades must be chronological")
-        if len({trade.signal_id for trade in trades}) != len(trades):
-            raise DomainValidationError("Backtest signal IDs must be unique")
-        if any(trade.variant is not self.variant for trade in trades):
-            raise DomainValidationError("Backtest trades do not match the selected track variant")
-        if any(trade.terminal_at > now for trade in trades):
-            raise DomainValidationError("Backtest cannot include outcomes after generation time")
-        if now < run_spec.coverage_end:
-            raise DomainValidationError("Backtest generation time precedes dataset coverage end")
-        if any(
-            trade.created_at < run_spec.coverage_start or trade.terminal_at > run_spec.coverage_end
-            for trade in trades
-        ):
-            raise DomainValidationError("Backtest trade falls outside declared dataset coverage")
-        if any(trade.strategy_version != run_spec.strategy_version for trade in trades):
-            raise DomainValidationError("Backtest mixes undeclared strategy versions")
-
-        for previous, current in pairwise(ordered):
-            if self.variant is OutcomeVariant.MANAGED and current.created_at < previous.terminal_at:
-                raise DomainValidationError(
-                    "Managed backtest trades overlap one-active-trade policy"
-                )
+        ordered = self._validated_trades(trades, now, run_spec)
+        sensitivity_universes = self._validated_sensitivity_trades(
+            sensitivity_trades,
+            ordered,
+            now,
+            run_spec,
+        )
 
         folds, selected_oos, all_oos = self._walk_forward(ordered, now)
         metrics = _statistics(selected_oos, now, self.variant)
         sensitivity = tuple(
-            self._sensitivity(all_oos, threshold, now) for threshold in self.policy.score_thresholds
+            self._sensitivity(
+                (
+                    all_oos
+                    if sensitivity_universes is None
+                    else self._trades_in_fold_windows(
+                        sensitivity_universes[threshold],
+                        folds,
+                    )
+                ),
+                threshold,
+                now,
+            )
+            for threshold in self.policy.score_thresholds
         )
         cost_stress = tuple(
             self._cost_stress(selected_oos, multiplier, now)
@@ -158,6 +155,78 @@ class BacktestEngine:
             reasons=reasons,
             policy=self.policy,
             run_spec=run_spec,
+        )
+
+    def _validated_trades(
+        self,
+        trades: tuple[BacktestTrade, ...],
+        now: datetime,
+        run_spec: BacktestRunSpec,
+    ) -> tuple[BacktestTrade, ...]:
+        ordered = tuple(sorted(trades, key=lambda trade: (trade.created_at, trade.signal_id)))
+        if tuple(trades) != ordered:
+            raise DomainValidationError("Backtest trades must be chronological")
+        if len({trade.signal_id for trade in trades}) != len(trades):
+            raise DomainValidationError("Backtest signal IDs must be unique")
+        if any(trade.variant is not self.variant for trade in trades):
+            raise DomainValidationError("Backtest trades do not match the selected track variant")
+        if any(trade.terminal_at > now for trade in trades):
+            raise DomainValidationError("Backtest cannot include outcomes after generation time")
+        if now < run_spec.coverage_end:
+            raise DomainValidationError("Backtest generation time precedes dataset coverage end")
+        if any(
+            trade.created_at < run_spec.coverage_start or trade.terminal_at > run_spec.coverage_end
+            for trade in trades
+        ):
+            raise DomainValidationError("Backtest trade falls outside declared dataset coverage")
+        if any(trade.strategy_version != run_spec.strategy_version for trade in trades):
+            raise DomainValidationError("Backtest mixes undeclared strategy versions")
+
+        for previous, current in pairwise(ordered):
+            if self.variant is OutcomeVariant.MANAGED and current.created_at < previous.terminal_at:
+                raise DomainValidationError(
+                    "Managed backtest trades overlap one-active-trade policy"
+                )
+        return ordered
+
+    def _validated_sensitivity_trades(
+        self,
+        sensitivity_trades: Mapping[int, tuple[BacktestTrade, ...]] | None,
+        primary_trades: tuple[BacktestTrade, ...],
+        now: datetime,
+        run_spec: BacktestRunSpec,
+    ) -> dict[int, tuple[BacktestTrade, ...]] | None:
+        if sensitivity_trades is None:
+            return None
+        if tuple(sorted(sensitivity_trades)) != self.policy.score_thresholds:
+            raise DomainValidationError(
+                "Independent sensitivity universes must match every declared score threshold"
+            )
+        validated = {
+            threshold: self._validated_trades(tuple(sensitivity_trades[threshold]), now, run_spec)
+            for threshold in self.policy.score_thresholds
+        }
+        primary = validated[self.policy.primary_score_threshold]
+        if primary != primary_trades:
+            raise DomainValidationError(
+                "Primary sensitivity universe does not match the evaluated trade universe"
+            )
+        return validated
+
+    @staticmethod
+    def _trades_in_fold_windows(
+        trades: tuple[BacktestTrade, ...],
+        folds: tuple[WalkForwardFold, ...],
+    ) -> tuple[BacktestTrade, ...]:
+        """Select independent replay outcomes inside the primary OOS time windows."""
+
+        return tuple(
+            trade
+            for trade in trades
+            if any(
+                fold.test_start <= trade.created_at and trade.terminal_at <= fold.test_end
+                for fold in folds
+            )
         )
 
     def _walk_forward(
@@ -194,7 +263,7 @@ class BacktestEngine:
                         default=train[0].created_at,
                     ),
                     test_start=test[0].created_at,
-                    test_end=test[-1].terminal_at,
+                    test_end=max(trade.terminal_at for trade in test),
                     selected_threshold=threshold,
                     training_resolved=len(_eligible(available_train, threshold)),
                     testing_resolved=test_stats.resolved,
@@ -308,6 +377,8 @@ class BacktestEngine:
         managed_trades: tuple[BacktestTrade, ...],
         generated_at: datetime,
         run_spec: BacktestRunSpec,
+        fixed_sensitivity_trades: Mapping[int, tuple[BacktestTrade, ...]] | None = None,
+        managed_sensitivity_trades: Mapping[int, tuple[BacktestTrade, ...]] | None = None,
     ) -> BacktestComparisonReport:
         """Evaluate already-streamed fixed and managed tracks from one signal universe."""
 
@@ -317,8 +388,32 @@ class BacktestEngine:
             raise DomainValidationError("Fixed and managed backtest universes do not match")
         fixed_engine = BacktestEngine(self.policy, OutcomeVariant.FIXED)
         managed_engine = BacktestEngine(self.policy, OutcomeVariant.MANAGED)
-        fixed_report = fixed_engine.evaluate(fixed_trades, generated_at, run_spec)
-        managed_report = managed_engine.evaluate(managed_trades, generated_at, run_spec)
+        if (fixed_sensitivity_trades is None) is not (managed_sensitivity_trades is None):
+            raise DomainValidationError(
+                "Fixed and managed sensitivity universes must be supplied together"
+            )
+        if fixed_sensitivity_trades is not None and managed_sensitivity_trades is not None:
+            for threshold in self.policy.score_thresholds:
+                if tuple(
+                    trade.signal_id for trade in fixed_sensitivity_trades.get(threshold, ())
+                ) != tuple(
+                    trade.signal_id for trade in managed_sensitivity_trades.get(threshold, ())
+                ):
+                    raise DomainValidationError(
+                        "Fixed and managed sensitivity universes do not match"
+                    )
+        fixed_report = fixed_engine.evaluate(
+            fixed_trades,
+            generated_at,
+            run_spec,
+            fixed_sensitivity_trades,
+        )
+        managed_report = managed_engine.evaluate(
+            managed_trades,
+            generated_at,
+            run_spec,
+            managed_sensitivity_trades,
+        )
 
         fixed_test = fixed_engine._walk_forward(fixed_trades, generated_at)[2]
         managed_test = managed_engine._walk_forward(managed_trades, generated_at)[2]

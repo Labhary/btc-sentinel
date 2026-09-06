@@ -1,8 +1,9 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from unittest import TestCase
 
+from btc_sentinel.analysis import MultiTimeframeAnalyzer
 from btc_sentinel.backtesting import (
     BacktestOutcome,
     HistoricalMarketView,
@@ -13,6 +14,7 @@ from btc_sentinel.errors import DomainValidationError
 from btc_sentinel.market_data.enums import MarketInterval, MarketVenue
 from btc_sentinel.market_data.models import Candle
 from btc_sentinel.news.models import RiskAssessment, RiskDecision
+from btc_sentinel.signals import SignalEngine
 from tests.analysis_fixtures import analysis_snapshot
 
 START = datetime(2026, 8, 2, 12, 0, tzinfo=UTC)
@@ -84,6 +86,15 @@ class GappedReplayStore(FakeReplayStore):
             if index == 5:
                 raise DomainValidationError("Historical streaming range contains a candle gap")
             yield candle
+
+
+class ScoreByCandidateAnalyzer:
+    def __init__(self) -> None:
+        self.result = MultiTimeframeAnalyzer().analyze(analysis_snapshot())
+
+    def analyze(self, snapshot):
+        score = 75 if snapshot.captured_at == START else 90
+        return replace(self.result, setup_quality_score=score)
 
 
 class HistoricalRunnerTests(TestCase):
@@ -160,6 +171,20 @@ class HistoricalRunnerTests(TestCase):
             dict(run.rejection_counts)["a managed BTC signal is already active"],
             1,
         )
+
+    def test_threshold_replays_keep_independent_active_and_cooldown_state(self) -> None:
+        later = START + timedelta(minutes=15)
+        store = FakeReplayStore((START, later))
+        runner = HistoricalReplayRunner(SignalEngine(analyzer=ScoreByCandidateAnalyzer()))
+
+        runs = runner.run_thresholds(store, START, END, (75, 80), ClearRiskProvider())
+
+        self.assertEqual(runs[75].created_signal_count, 1)
+        self.assertEqual(runs[75].fixed_trades[0].created_at, START)
+        self.assertEqual(runs[80].created_signal_count, 1)
+        self.assertEqual(runs[80].fixed_trades[0].created_at, later)
+        self.assertIn("a managed BTC signal is already active", dict(runs[75].rejection_counts))
+        self.assertIn("setup score below selective threshold 80", dict(runs[80].rejection_counts))
 
     def test_run_must_stay_inside_immutable_store_coverage(self) -> None:
         with self.assertRaisesRegex(DomainValidationError, "outside"):
