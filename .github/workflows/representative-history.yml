@@ -47,10 +47,16 @@ jobs:
 
       - name: Materialize retained official risk evidence
         run: |
-          echo "4dd11668fae3194c3643e02b48eea378699821ba5aca845d8de60eddf52ebd71  evidence/official-risk-evidence-2022-2025-v1.zip" \
+          sha256sum --check --strict evidence/official-risk-evidence-2022-2025-v1.parts.sha256
+          cat \
+            evidence/official-risk-evidence-2022-2025-v1.zip.part-00 \
+            evidence/official-risk-evidence-2022-2025-v1.zip.part-01 \
+            evidence/official-risk-evidence-2022-2025-v1.zip.part-02 \
+            > "$RUNNER_TEMP/official-risk-evidence-2022-2025-v1.zip"
+          echo "4dd11668fae3194c3643e02b48eea378699821ba5aca845d8de60eddf52ebd71  $RUNNER_TEMP/official-risk-evidence-2022-2025-v1.zip" \
             | sha256sum --check --strict
           mkdir artifacts/risk-evidence-2022-2025
-          unzip -q evidence/official-risk-evidence-2022-2025-v1.zip \
+          unzip -q "$RUNNER_TEMP/official-risk-evidence-2022-2025-v1.zip" \
             -d artifacts/risk-evidence-2022-2025
 
       - name: Derive point-in-time risk history

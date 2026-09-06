@@ -1,8 +1,11 @@
 # Retained representative risk evidence
 
-`official-risk-evidence-2022-2025-v1.zip` is the immutable input used by the
-GitHub-hosted representative evaluation. It contains the raw official Federal
-Reserve, SEC, and BLS pages plus normalized evidence and its schema-v2 manifest.
+The three `official-risk-evidence-2022-2025-v1.zip.part-*` files form the
+immutable ZIP input used by the GitHub-hosted representative evaluation. They
+are concatenated in numeric order only after each part passes its recorded
+SHA-256. The reconstructed ZIP is independently checked before extraction. It
+contains the raw official Federal Reserve, SEC, and BLS pages plus normalized
+evidence and its schema-v2 manifest.
 
 - Acquisition date: 2026-09-05 UTC
 - Coverage: `[2022-01-01T00:00:00Z, 2026-01-01T00:00:00Z)`
