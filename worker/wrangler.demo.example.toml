@@ -1,0 +1,16 @@
+name = "btc-sentinel-private-demo"
+main = "src/demo.ts"
+compatibility_date = "2026-08-01"
+
+[vars]
+PRODUCTION_DISPATCH_ENABLED = "false"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "btc-sentinel-private-demo"
+database_id = "REPLACE_WITH_DEMO_D1_DATABASE_ID"
+migrations_dir = "../migrations"
+
+# Dedicated demo bot and database only. No cron or GitHub dispatch token.
+# Add TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_USER_ID, TELEGRAM_WEBHOOK_SECRET,
+# and STATE_API_HMAC_SECRET using Wrangler secret put, never in git.
