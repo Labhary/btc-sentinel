@@ -24,7 +24,7 @@ one-minute candles. The risk input retained 99 raw official Fed/SEC/BLS pages,
 1,067 normalized records, 14 conservative coverage gaps, and 140,256 exact
 15-minute risk states.
 
-## Result
+## Initial result
 
 - Available completed 15-minute decision boundaries: `140250`
 - Created signals: `0`
@@ -49,3 +49,50 @@ official native `1mo` archives as a separate checksum-bound monthly input,
 starting in 2017 for pre-2022 warm-up. Keep the one-minute archive as the sole
 execution and fill path. Rerun the same frozen strategy and evaluation window,
 then append—not overwrite—the resulting verdict.
+
+## Native-monthly authoritative rerun
+
+Run date: 2026-09-06 UTC
+
+- GitHub Actions run:
+  [`34030140029`](https://github.com/Labhary/btc-sentinel/actions/runs/34030140029)
+- Retained workflow artifact ID: `9988481533` (90-day Actions retention)
+- Native monthly dataset:
+  `binance-vision-btcusdt-native-monthly-2017-2024-02-v2`
+- Native monthly manifest SHA-256:
+  `4e12dfc0aced94db8314d9c004247fbe6704816d9563753c71459b754bc6eda6`
+- Market and risk datasets, hashes, evaluation range, and strategy version:
+  unchanged from the initial attempt
+
+The rerun acquired all 60 official one-minute archives, validated 2,628,362
+usable candles, acquired 79 native monthly archives from August 2017 through
+February 2024, regenerated the same 140,256 point-in-time risk states, and
+evaluated every available boundary. Native monthly data overlays only its
+declared range; complete gap-checked one-minute-derived months remain in use
+from March 2024 onward.
+
+### Rerun result
+
+- Available completed 15-minute decision boundaries: `140250`
+- Created signals: `1`
+- Completed out-of-sample fixed/managed pairs: `0`
+- Fixed verdict: `INCONCLUSIVE`
+- Managed verdict: `INCONCLUSIVE`
+- Walk-forward folds: `0`
+- Strict win rate: unavailable
+- Net and average R: unavailable
+
+The result fails the minimum evidence gates before profitability can be tested:
+it has no complete walk-forward fold or out-of-sample trade, versus required
+minimums of three folds and 100 out-of-sample trades, including at least 20 in
+each bullish and bearish trend regime. The rejection counters overlap because
+one boundary can fail several gates; the largest were setup score below 80
+(`137871`), non-aligned overall regime (`136986`), unreliable multi-timeframe
+analysis (`91205`), and blocking news/risk coverage (`75564`).
+
+This is not a failed >60% result; it is an absence of enough eligible evidence
+to calculate a win rate. It does not authorize deployment or paper activation.
+The 2022–2025 window is now consumed evidence and must not be tuned against.
+Any changed rule set requires a new strategy version, a separately declared
+development dataset, and a new untouched holdout before another performance
+claim.

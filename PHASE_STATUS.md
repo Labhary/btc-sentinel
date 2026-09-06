@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-09-02
+Last updated: 2026-09-06
 
 ## Completed — Phase 1
 
@@ -111,17 +111,31 @@ Last updated: 2026-09-02
   fabricated outcomes.
 - Contradictory outcome categories and R signs roll back the close transaction.
 
-## Next — Phase 10
+## Completed — Phase 10
 
 - Daily, weekly, monthly, active, pending, and news-risk reports.
-- Render strict statistics with sample size and uncertainty labels.
-- Prepare Telegram payloads without enabling production delivery.
+- Strict statistics with sample size and uncertainty labels.
+- Telegram payload preparation without production delivery.
 
-## Not implemented yet
+## Completed — Phase 11
 
-Deployment is not active. Phase 7 provides a local lifecycle replay library;
-no production monitor or schedule invokes it. Phase 8 management is likewise a
-library, not an active service. Phase 9 statistics are durable but no report or
-production delivery consumes them yet. Telegram signal delivery, reports, and
-backtesting remain disabled until their phases are implemented and tested. No
-external write is enabled.
+- Conservative fixed and managed lifecycle replay with modeled costs.
+- Purged walk-forward, regime, sample-size, uncertainty, sensitivity, and
+  stability gates.
+- Immutable official Binance and Fed/SEC/BLS evidence reconstruction.
+- Authoritative 2022–2025 replay completed with an INCONCLUSIVE verdict: one
+  signal, no eligible out-of-sample trade or fold, and no measurable win rate.
+
+## In progress, inactive — Phase 12
+
+- D1/state API, orchestration, outbox recovery, health reporting, and paper-job
+  assembly are implemented behind independent hard-disabled gates.
+- Representative validation completed but did not satisfy the evidence gates.
+- Preview resource provisioning, encrypted secrets, webhook registration,
+  preview verification, and activation are not complete.
+
+## Blocked — Phase 13
+
+Paper observation cannot begin until a separately versioned strategy passes an
+untouched representative validation and the Phase 12 preview is provisioned and
+verified. No production delivery, exchange write, or real trading is enabled.

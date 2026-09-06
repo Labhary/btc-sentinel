@@ -13,25 +13,29 @@ market data and rules, not from a language model.
 > Phase 9 creates strict append-only statistics after every track close, and
 > Phase 10 prepares read-only paper reports with sample sizes and uncertainty.
 > Phase 11 adds conservative fixed/managed replay and purged walk-forward
-> evaluation. No representative historical dataset has been evaluated, so the
-> strict win-rate objective above 60% at 2R or better remains unproven.
+> evaluation. The authoritative 2022–2025 replay evaluated 140,250 boundaries
+> but created only one signal and no eligible out-of-sample trade or fold. Both
+> variants are INCONCLUSIVE, so the strict win-rate objective above 60% at 2R
+> or better remains unproven.
 > Phase 12 deployment boundaries, deterministic orchestration core, typed D1
 > repository adapter, atomic signal/outbox commit, and executable GitHub Actions
-> job assembly are implemented and remain hard-disabled. Representative backtest
-> validation, resource provisioning, preview verification, and deployment are
-> not complete.
+> job assembly are implemented and remain hard-disabled. The representative
+> validation ran successfully but did not meet its evidence gates; resource
+> provisioning, preview verification, activation, and deployment are not
+> complete.
 > A streaming, checksum-bound Binance Vision historical-data preflight is now
 > available. A disk-backed replay index now creates complete-only point-in-time
 > 15m through monthly Spot views, and an exhaustive runner streams signal and
 > lifecycle evaluation without future leakage. A checksum-bound 15-minute
 > historical risk-timeline store rejects future evidence and required-source
 > gaps that do not block. An executable command now joins both immutable inputs
-> through exhaustive replay and separate fixed/managed verdicts. No
-> representative market/risk dataset has been run, so the strategy has not
-> passed a backtest. A conservative official-archive builder now retains and
-> hashes the raw Federal Reserve, SEC, and BLS pages, binds every normalized
+> through exhaustive replay and separate fixed/managed verdicts. The strategy
+> has not passed a backtest. A conservative official-archive builder now retains
+> and hashes the raw Federal Reserve, SEC, and BLS pages, binds every normalized
 > risk record to its provenance, and blocks intervals whose historical schedule
 > availability cannot be established.
+> The immutable inputs and both attempts are recorded in
+> [the representative backtest record](docs/representative-backtest-2022-2025.md).
 > This must not yet be treated as a live trading tool.
 
 ## Non-negotiable behavior

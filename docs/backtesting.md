@@ -1,9 +1,10 @@
 # Backtesting policy
 
 Phase 11 supplies a deterministic backtesting framework. The first strict
-2022–2025 official-archive run evaluated 140,250 boundaries but produced zero
-eligible signals because declared one-minute outages prevented the derived
-monthly series from ever reaching 50 consecutive candles. Its verdict is
+2022–2025 official-archive run exposed an invalid monthly warm-up path. The
+corrected authoritative rerun used native monthly warm-up, evaluated all
+140,250 boundaries, created one signal, and produced no eligible out-of-sample
+trade or walk-forward fold. Both fixed and managed verdicts are
 **INCONCLUSIVE**. The current >60% strict win-rate objective at 2R or better is
 therefore **unproven**, not passed.
 
