@@ -242,6 +242,8 @@ class MultiTimeframeAnalyzer:
                 group.available and group.direction is bias and bias is not Direction.NEUTRAL
             ):
                 score += Decimal(group.weight) * group.agreement
+        available_weight = sum(group.weight for group in groups if group.available)
+        score = score * Decimal("100") / Decimal(available_weight)
         if no_trade:
             score = min(score, Decimal("59"))
         status = AnalysisStatus.ACCEPTED if derivatives.available else AnalysisStatus.DEGRADED
