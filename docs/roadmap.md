@@ -58,8 +58,10 @@ add files without activating production schedules.
     implemented to resolve that evidence-coverage problem without filling or
     ignoring gaps. The official monthly archive ends at February 2024, so the
     fixed reconstruction retains exact one-minute-derived months after that
-    boundary. A rerun with the native supplement is still required before any
-    performance claim.
+    boundary. The authoritative rerun completed all 140,250 boundaries but
+    created only one signal, no out-of-sample trade, and no walk-forward fold.
+    Both variants are INCONCLUSIVE, so the >60% at 2R objective remains
+    unproven and the consumed 2022–2025 window is closed to tuning.
 12. **Free deployment — in progress, inactive**
     D1 runtime-boundary migration, signed bootstrap/health API, idempotent
     cron-to-workflow dispatch, deterministic orchestration core, typed runtime
@@ -68,8 +70,9 @@ add files without activating production schedules.
     atomic signal/outbox commit, bounded outbox recovery, and migration 4.
     The executable job now wires the public collectors, typed repository,
     orchestrator, notification recovery, and health sink behind the hard gate.
-    Conclusive representative validation, preview provisioning, encrypted secret
-    setup, webhook registration, and activation remain incomplete.
+    Representative validation completed but was INCONCLUSIVE. Preview
+    provisioning, encrypted secret setup, webhook registration, and activation
+    remain blocked and incomplete.
 13. **Paper observation**
     Run without money, preserve every result, change rules only through a new
     version backed by evidence.
