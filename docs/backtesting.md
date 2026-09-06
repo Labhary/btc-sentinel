@@ -10,6 +10,15 @@ therefore **unproven**, not passed.
 The immutable inputs and rejection summary are preserved in
 [`representative-backtest-2022-2025.md`](representative-backtest-2022-2025.md).
 
+The representative GitHub workflow consumes the repository's retained,
+compressed official-risk snapshot instead of reacquiring live government pages
+on every run. The archive has an independently checked SHA-256, and its internal
+manifest binds every normalized record to the SHA-256 of its retained Federal
+Reserve, SEC, or BLS source page. The normal acquisition command remains
+available for deliberate snapshot refreshes. This split is necessary because
+the SEC archive rejects GitHub-hosted runner traffic; a failed live refresh is
+never substituted for the retained evidence.
+
 ## Dataset contract
 
 A performance run must declare an immutable dataset identifier, UTC coverage
