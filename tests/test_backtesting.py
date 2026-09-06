@@ -327,6 +327,36 @@ class WalkForwardTests(TestCase):
             engine.evaluate(trades, NOW, run_spec()),
         )
 
+    def test_sensitivity_can_use_independent_threshold_replay_paths(self) -> None:
+        selected_policy = policy()
+        primary = tuple(trade(index, score=80) for index in range(13))
+        independent = {
+            75: tuple(trade(index, BacktestOutcome.LOSS, score=75) for index in range(13)),
+            80: primary,
+            85: tuple(trade(index, score=90) for index in range(13)),
+        }
+
+        report = BacktestEngine(selected_policy).evaluate(
+            primary,
+            NOW,
+            run_spec(),
+            independent,
+        )
+
+        sensitivity = {item.threshold: item for item in report.sensitivity}
+        self.assertLess(sensitivity[75].average_r, 0)
+        self.assertGreater(sensitivity[80].average_r, 0)
+        self.assertGreater(sensitivity[85].average_r, 0)
+        self.assertIn("score-threshold sensitivity is negative", " ".join(report.reasons))
+
+        with self.assertRaisesRegex(DomainValidationError, "every declared"):
+            BacktestEngine(selected_policy).evaluate(
+                primary,
+                NOW,
+                run_spec(),
+                {80: primary},
+            )
+
     def test_run_spec_rejects_declared_cherry_picking_and_missing_price_coverage(self) -> None:
         spec = run_spec()
         with self.assertRaisesRegex(DomainValidationError, "candidate universe"):

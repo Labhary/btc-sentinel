@@ -125,6 +125,9 @@ Last updated: 2026-09-06
 - Immutable official Binance and Fed/SEC/BLS evidence reconstruction.
 - Authoritative 2022–2025 replay completed with an INCONCLUSIVE verdict: one
   signal, no eligible out-of-sample trade or fold, and no measurable win rate.
+- Historical score sensitivity now replays 75, 80, and 85 as independent
+  active/cooldown paths inside common out-of-sample time windows; it is no
+  longer inferred by filtering the primary-threshold trade list.
 
 ## In progress, inactive — Phase 12
 
