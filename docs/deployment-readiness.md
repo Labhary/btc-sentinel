@@ -25,7 +25,10 @@ checksum-bound normalized official-source evidence. The conservative archive
 builder now downloads and retains the raw Federal Reserve, SEC, and BLS pages,
 binds normalized records to those hashes, and turns uncertain BLS schedule
 availability—including a missing last-modified date—into blocking gaps. A live
-2024 smoke reconstruction passed. Native Binance `1mo` acquisition and a
+2024 smoke reconstruction passed. The representative workflow uses a
+checksum-verified retained copy of the complete 2022–2025 official snapshot
+because SEC rejects GitHub-hosted runner acquisition; deliberate refreshes
+remain separate and fail closed. Native Binance `1mo` acquisition and a
 bounded range overlay are now available so the rerun can obtain long-horizon
 warm-up without bridging one-minute outages. The official native archive ends
 at February 2024; exact gap-checked one-minute derivation remains authoritative
