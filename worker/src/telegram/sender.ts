@@ -14,6 +14,32 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function classifyFetchError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "FETCH_ERROR_OTHER";
+  }
+  if (error.name === "AbortError") {
+    return "TIMEOUT";
+  }
+  const message = error.message.toLowerCase();
+  if (message.includes("network connection lost")) {
+    return "NETWORK_CONNECTION_LOST";
+  }
+  if (message.includes("cannot access") && message.includes("host")) {
+    return "HOST_UNREACHABLE";
+  }
+  if (message.includes("dns") || message.includes("resolve")) {
+    return "DNS_ERROR";
+  }
+  if (message.includes("tls") || message.includes("certificate")) {
+    return "TLS_ERROR";
+  }
+  if (error.name === "TypeError") {
+    return "TYPE_ERROR_OTHER";
+  }
+  return "FETCH_ERROR_OTHER";
+}
+
 function logDeliveryDiagnostic(category: string, status?: number): void {
   const statusSuffix = status === undefined ? "" : ` status=${status}`;
   console.error(`telegram_delivery_diagnostic category=${category}${statusSuffix}`);
@@ -42,9 +68,7 @@ export class TelegramApiSender implements TelegramSender {
           },
         );
       } catch (error) {
-        const category =
-          error instanceof Error && error.name === "AbortError" ? "TIMEOUT" : "FETCH_ERROR";
-        logDeliveryDiagnostic(category);
+        logDeliveryDiagnostic(classifyFetchError(error));
         throw error;
       }
     } finally {
