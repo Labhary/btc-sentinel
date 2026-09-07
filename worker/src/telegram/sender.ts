@@ -48,7 +48,7 @@ function logDeliveryDiagnostic(category: string, status?: number): void {
 export class TelegramApiSender implements TelegramSender {
   constructor(
     private readonly token: string,
-    private readonly fetchFunction: FetchFunction = fetch,
+    private readonly fetchFunction: FetchFunction = (input, init) => fetch(input, init),
     private readonly timeoutMilliseconds = 8_000,
   ) {}
 

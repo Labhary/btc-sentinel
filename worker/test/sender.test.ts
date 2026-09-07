@@ -6,9 +6,32 @@ const token = "123456789" + ":" + "A".repeat(32);
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("TelegramApiSender", () => {
+  it("calls the default fetch without binding it to the sender", async () => {
+    const nativeFetch = vi.fn(function (
+      this: unknown,
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ) {
+      if (this !== undefined && this !== globalThis) {
+        throw new TypeError("Illegal invocation");
+      }
+      expect(String(input)).toBe(`https://api.telegram.org/bot${token}/sendMessage`);
+      expect(init?.method).toBe("POST");
+      expect(JSON.parse(String(init?.body))).toEqual({ chat_id: "424242", text: "hello" });
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return Promise.resolve(Response.json({ ok: true, result: { message_id: 78 } }));
+    });
+    vi.stubGlobal("fetch", nativeFetch);
+    const sender = new TelegramApiSender(token);
+
+    await expect(sender.sendMessage("424242", "hello")).resolves.toEqual({ messageId: "78" });
+    expect(nativeFetch).toHaveBeenCalledOnce();
+  });
+
   it("sends a JSON request and returns Telegram's message ID", async () => {
     let capturedUrl = "";
     let capturedInit: RequestInit | undefined;
