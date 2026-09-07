@@ -62,7 +62,7 @@ describe("TelegramApiSender", () => {
 
     await expect(sender.sendMessage("424242", "secret message text")).rejects.toThrow();
 
-    expect(log).toHaveBeenCalledWith("telegram_delivery_diagnostic category=FETCH_ERROR");
+    expect(log).toHaveBeenCalledWith("telegram_delivery_diagnostic category=FETCH_ERROR_OTHER");
     const logged = log.mock.calls.flat().join(" ");
     expect(logged).not.toContain(token);
     expect(logged).not.toContain("424242");
