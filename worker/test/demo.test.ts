@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { handleDemo } from "../src/demo";
+import { configurationFailure, handleDemo } from "../src/demo";
+import { ConfigurationError } from "../src/config";
 import {
   FakeTelegramSender,
   fixedClock,
@@ -55,5 +56,24 @@ describe("private scripted demo", () => {
         })
       ).status,
     ).toBe(503);
+  });
+
+  it("reports only safe configuration diagnostics on the health route", async () => {
+    const response = configurationFailure(
+      new Request("https://demo.example/health"),
+      new ConfigurationError("TELEGRAM_BOT_TOKEN is invalid"),
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      status: "configuration_error",
+      detail: "TELEGRAM_BOT_TOKEN is invalid",
+    });
+
+    const hidden = configurationFailure(
+      new Request("https://demo.example/telegram/webhook"),
+      new Error("sensitive runtime detail"),
+    );
+    expect(hidden.status).toBe(503);
+    expect(await hidden.text()).toBe("");
   });
 });

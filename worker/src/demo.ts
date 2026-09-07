@@ -1,5 +1,5 @@
 import { handleRequest, type AppDependencies } from "./app";
-import { loadConfig, type WorkerEnv } from "./config";
+import { ConfigurationError, loadConfig, type WorkerEnv } from "./config";
 import { D1BotStore } from "./persistence/d1-store";
 import { TelegramApiSender } from "./telegram/sender";
 import { systemClock } from "./time";
@@ -48,6 +48,16 @@ export async function handleDemo(request: Request, deps: AppDependencies): Promi
   });
 }
 
+export function configurationFailure(request: Request, error: unknown): Response {
+  if (new URL(request.url).pathname !== "/health" || !(error instanceof ConfigurationError)) {
+    return new Response(null, { status: 503 });
+  }
+  return Response.json(
+    { status: "configuration_error", detail: error.message },
+    { status: 503, headers: { "cache-control": "no-store" } },
+  );
+}
+
 export default {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     try {
@@ -58,8 +68,8 @@ export default {
         sender: new TelegramApiSender(config.telegramBotToken),
         clock: systemClock,
       });
-    } catch {
-      return new Response(null, { status: 503 });
+    } catch (error) {
+      return configurationFailure(request, error);
     }
   },
 };
