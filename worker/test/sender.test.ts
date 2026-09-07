@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TelegramApiSender, TelegramRejectedError } from "../src/telegram/sender";
 
 const token = "123456789" + ":" + "A".repeat(32);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("TelegramApiSender", () => {
   it("sends a JSON request and returns Telegram's message ID", async () => {
@@ -37,6 +41,7 @@ describe("TelegramApiSender", () => {
   });
 
   it("treats malformed or contradictory responses as uncertain", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
     const malformed = new TelegramApiSender(
       token,
       async () => new Response("not-json", { status: 502 }),
@@ -47,5 +52,36 @@ describe("TelegramApiSender", () => {
 
     await expect(malformed.sendMessage("424242", "hello")).rejects.toThrow("unreadable response");
     await expect(missingId.sendMessage("424242", "hello")).rejects.toThrow("valid message ID");
+  });
+
+  it("logs only a safe category for fetch failures", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const sender = new TelegramApiSender(token, async () => {
+      throw new Error(`connection failed for ${token} and chat 424242`);
+    });
+
+    await expect(sender.sendMessage("424242", "secret message text")).rejects.toThrow();
+
+    expect(log).toHaveBeenCalledWith("telegram_delivery_diagnostic category=FETCH_ERROR");
+    const logged = log.mock.calls.flat().join(" ");
+    expect(logged).not.toContain(token);
+    expect(logged).not.toContain("424242");
+    expect(logged).not.toContain("secret message text");
+    expect(logged).not.toContain("connection failed");
+  });
+
+  it("logs safe response categories with status only", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const unreadable = new TelegramApiSender(
+      token,
+      async () => new Response("upstream body must stay private", { status: 502 }),
+    );
+
+    await expect(unreadable.sendMessage("424242", "hello")).rejects.toThrow("unreadable response");
+
+    expect(log).toHaveBeenCalledWith(
+      "telegram_delivery_diagnostic category=UNREADABLE_RESPONSE status=502",
+    );
+    expect(log.mock.calls.flat().join(" ")).not.toContain("upstream body must stay private");
   });
 });
