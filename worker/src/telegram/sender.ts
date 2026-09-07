@@ -32,12 +32,15 @@ export class TelegramApiSender implements TelegramSender {
     let response: Response;
     try {
       try {
-        response = await this.fetchFunction(`https://api.telegram.org/bot${this.token}/sendMessage`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ chat_id: chatId, text }),
-          signal: controller.signal,
-        });
+        response = await this.fetchFunction(
+          `https://api.telegram.org/bot${this.token}/sendMessage`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ chat_id: chatId, text }),
+            signal: controller.signal,
+          },
+        );
       } catch (error) {
         const category =
           error instanceof Error && error.name === "AbortError" ? "TIMEOUT" : "FETCH_ERROR";
