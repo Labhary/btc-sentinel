@@ -15,6 +15,7 @@ export interface AppDependencies {
   store: BotStore;
   sender: TelegramSender;
   clock: Clock;
+  commandHandler?: typeof executeCommand;
 }
 
 function noContent(): Response {
@@ -77,7 +78,11 @@ async function telegramWebhook(request: Request, dependencies: AppDependencies):
     return noContent();
   }
 
-  const text = await executeCommand(command.name, dependencies.store, now);
+  const text = await (dependencies.commandHandler ?? executeCommand)(
+    command.name,
+    dependencies.store,
+    now,
+  );
   const message: OutboxMessage = {
     outboxId: `telegram-response-${update.updateId}`,
     dedupeKey: `telegram:update:${update.updateId}:response`,
