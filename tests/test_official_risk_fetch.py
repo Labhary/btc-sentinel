@@ -1,5 +1,6 @@
 import json
 import tempfile
+import zlib
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest import TestCase
@@ -11,6 +12,7 @@ from btc_sentinel.backtesting.official_risk_fetch import (
     OfficialRiskArchiveBuilder,
     UrllibOfficialPageDownloader,
     _bls_records,
+    _decode_payload,
     _fed_record,
     _sec_records,
 )
@@ -202,6 +204,17 @@ class OfficialRiskArchiveTests(TestCase):
 
     def test_official_downloader_uses_contactable_user_agent(self) -> None:
         self.assertRegex(_OFFICIAL_ARCHIVE_USER_AGENT, r"\S+@\S+\.\S+")
+
+    def test_decodes_bounded_official_gzip_payload(self) -> None:
+        compressor = zlib.compressobj(wbits=31)
+        payload = compressor.compress(b"<html>official</html>") + compressor.flush()
+
+        self.assertEqual(
+            _decode_payload(payload, "gzip", 100),
+            b"<html>official</html>",
+        )
+        with self.assertRaisesRegex(HistoricalDataError, "response size"):
+            _decode_payload(payload, "gzip", 5)
 
     def test_rejects_unapproved_url_and_overwrite(self) -> None:
         downloader = UrllibOfficialPageDownloader(maximum_attempts=1)

@@ -7,6 +7,7 @@ import html
 import json
 import re
 import time
+import zlib
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -97,6 +98,29 @@ def _validate_url(url: str) -> None:
     raise HistoricalDataError("Official archive URL is outside the fixed source catalog")
 
 
+def _decode_payload(payload: bytes, content_encoding: str, maximum_bytes: int) -> bytes:
+    encoding = content_encoding.strip().lower()
+    if encoding in {"", "identity"}:
+        decoded = payload
+    elif encoding in {"gzip", "deflate"}:
+        decoder = zlib.decompressobj(31 if encoding == "gzip" else zlib.MAX_WBITS)
+        try:
+            decoded = decoder.decompress(payload, maximum_bytes + 1)
+        except zlib.error as exc:
+            raise HistoricalDataError("Official archive compression is invalid") from exc
+        if not decoder.eof or decoder.unconsumed_tail:
+            raise HistoricalDataError("Official archive response size is invalid")
+    else:
+        raise HistoricalDataError("Official archive used an unsupported content encoding")
+    if not decoded or len(decoded) > maximum_bytes:
+        raise HistoricalDataError("Official archive response size is invalid")
+    try:
+        decoded.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise HistoricalDataError("Official archive HTML is not UTF-8") from exc
+    return decoded
+
+
 class OfficialPageDownloader(Protocol):
     def fetch(self, url: str) -> bytes: ...
 
@@ -132,6 +156,7 @@ class UrllibOfficialPageDownloader:
                     method="GET",
                     headers={
                         "Accept": "text/html",
+                        "Accept-Encoding": "gzip, deflate",
                         "User-Agent": _OFFICIAL_ARCHIVE_USER_AGENT,
                     },
                 )
@@ -144,10 +169,11 @@ class UrllibOfficialPageDownloader:
                     if content_type not in {"text/html", "application/xhtml+xml"}:
                         raise HistoricalDataError("Official archive did not return HTML")
                     payload = response.read(self.maximum_bytes + 1)
-                    if not payload or len(payload) > self.maximum_bytes:
-                        raise HistoricalDataError("Official archive response size is invalid")
-                    payload.decode("utf-8")
-                    return payload
+                    return _decode_payload(
+                        payload,
+                        response.headers.get("Content-Encoding", ""),
+                        self.maximum_bytes,
+                    )
             except HistoricalDataError:
                 raise
             except (HTTPError, URLError, TimeoutError, OSError, UnicodeDecodeError) as exc:
