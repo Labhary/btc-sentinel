@@ -233,3 +233,18 @@ class HistoricalRunnerTests(TestCase):
         self.assertEqual(run.analysis_ready_first_boundary, later)
         self.assertEqual(run.analysis_ready_last_boundary, later)
         self.assertIn("1M analysis requires 50 completed candles", dict(run.rejection_counts))
+
+    def test_readiness_audit_does_not_require_or_evaluate_risk(self) -> None:
+        later = START + timedelta(minutes=15)
+        audit = HistoricalReplayRunner(
+            SignalEngine(analyzer=RejectedFirstAnalyzer())
+        ).audit_analysis_readiness(FakeReplayStore((START, later)), START, END)
+
+        self.assertEqual(audit.candidate_count, 2)
+        self.assertEqual(audit.analysis_ready_candidate_count, 1)
+        self.assertEqual(audit.analysis_ready_first_boundary, later)
+        self.assertEqual(audit.analysis_ready_last_boundary, later)
+        self.assertEqual(
+            dict(audit.rejection_counts),
+            {"1M analysis requires 50 completed candles": 1},
+        )

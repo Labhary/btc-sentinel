@@ -22,6 +22,7 @@ from btc_sentinel.backtesting.dataset import (
 from btc_sentinel.backtesting.engine import BacktestEngine
 from btc_sentinel.backtesting.historical_runner import (
     FailClosedHistoricalRiskProvider,
+    HistoricalAnalysisReadiness,
     HistoricalReplayRun,
     HistoricalReplayRunner,
     HistoricalRiskProvider,
@@ -94,6 +95,7 @@ __all__ = [
     "CostStressResult",
     "EvidenceSourceSpec",
     "FailClosedHistoricalRiskProvider",
+    "HistoricalAnalysisReadiness",
     "HistoricalArchiveBuild",
     "HistoricalDataError",
     "HistoricalDataset",

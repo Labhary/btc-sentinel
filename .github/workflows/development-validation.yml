@@ -49,26 +49,10 @@ jobs:
           artifacts/monthly-2017-2021
           --dataset-id binance-vision-btcusdt-native-monthly-development-2017-2021-v1
 
-      - name: Acquire retained official risk evidence
-        run: >-
-          btc-sentinel-fetch-risk-history
-          --start-year 2021
-          --end-year 2022
-          --output artifacts/risk-evidence-2021
-          --dataset-id official-risk-evidence-development-2021-v1
-
-      - name: Derive point-in-time development risk history
-        run: >-
-          btc-sentinel-build-risk-history
-          artifacts/risk-evidence-2021/evidence-manifest.json
-          artifacts/risk-history-2021
-          --dataset-id official-risk-development-2021-v1
-
-      - name: Run development diagnostic
+      - name: Audit complete analysis input readiness
         run: |
-          btc-sentinel-run-history \
+          btc-sentinel-audit-development-readiness \
             artifacts/market-2021/manifest.json \
-            artifacts/risk-history-2021/risk-manifest.json \
             2021-01-01T00:00:00Z \
             2022-01-01T00:00:00Z \
             --monthly-manifest artifacts/monthly-2017-2021/monthly-manifest.json \
@@ -87,12 +71,19 @@ jobs:
               "analysis_ready_last_boundary",
               "evaluated_boundaries",
               "rejection_counts",
-              "fixed",
-              "managed",
+              "performance_verdict",
+              "stop_reason",
           }
           missing = sorted(required - report.keys())
           if missing:
               raise SystemExit(f"development report is missing audit fields: {missing}")
+          if report["analysis_ready_boundaries"] != 0:
+              raise SystemExit(
+                  "analysis inputs became ready; freeze this report and start a separate "
+                  "point-in-time risk validation before any signal evaluation"
+              )
+          if report["performance_verdict"] != "NOT_RUN":
+              raise SystemExit("readiness audit must not report strategy performance")
           PY
 
       - name: Retain complete development evidence and report

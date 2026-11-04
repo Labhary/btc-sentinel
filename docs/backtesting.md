@@ -292,6 +292,22 @@ report their inclusive UTC limits, or `null` when none were ready. Merely readin
 a partial market view does not make a boundary analysis-ready. These fields do
 not hide earlier warm-up rejections or imply that ready boundaries were continuous.
 
+Before acquiring point-in-time risk evidence for a development interval, audit
+those inputs independently:
+
+```bash
+btc-sentinel-audit-development-readiness \
+  path/to/market-manifest.json \
+  2021-01-01T00:00:00Z \
+  2022-01-01T00:00:00Z \
+  --monthly-manifest path/to/monthly-manifest.json
+```
+
+This command never evaluates signals or performance. A result with zero
+analysis-ready boundaries is a stop condition with
+`performance_verdict=NOT_RUN`; official risk acquisition and the full replay
+remain separate later gates.
+
 The manual `Representative historical evaluation` GitHub Actions workflow runs
 that exact acquisition and evaluation sequence with read-only repository
 permissions. It retains the downloaded evidence, manifests, and JSON report for

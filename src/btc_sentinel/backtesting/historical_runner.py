@@ -96,6 +96,18 @@ class FailClosedHistoricalRiskProvider:
 
 
 @dataclass(frozen=True, slots=True)
+class HistoricalAnalysisReadiness:
+    dataset_id: str
+    coverage_start: datetime
+    coverage_end: datetime
+    candidate_count: int
+    analysis_ready_candidate_count: int
+    analysis_ready_first_boundary: datetime | None
+    analysis_ready_last_boundary: datetime | None
+    rejection_counts: tuple[tuple[str, int], ...]
+
+
+@dataclass(frozen=True, slots=True)
 class HistoricalReplayRun:
     dataset_id: str
     strategy_version: str
@@ -242,6 +254,49 @@ class HistoricalReplayRunner:
 
     def __init__(self, signal_engine: SignalEngine | None = None) -> None:
         self.signal_engine = signal_engine or SignalEngine(analyzer=_HistoricalCachingAnalyzer())
+
+    def audit_analysis_readiness(
+        self,
+        store: HistoricalReplayStore,
+        start: datetime,
+        end: datetime,
+    ) -> HistoricalAnalysisReadiness:
+        """Measure complete analysis input readiness without evaluating signals or risk."""
+
+        first = ensure_utc(start)
+        stop = ensure_utc(end)
+        coverage_start, coverage_end = store.coverage()
+        if first < coverage_start or stop > coverage_end or stop <= first:
+            raise DomainValidationError("Historical run falls outside replay-store coverage")
+        candidates = store.candidate_times(first, stop)
+        rejections: Counter[str] = Counter()
+        ready_count = 0
+        ready_first: datetime | None = None
+        ready_last: datetime | None = None
+        for candidate in candidates:
+            try:
+                view = store.market_view(candidate)
+            except DomainValidationError:
+                rejections["historical market warm-up is incomplete"] += 1
+                continue
+            analysis = self.signal_engine.analyzer.analyze(view)
+            if analysis.status is AnalysisStatus.REJECTED:
+                rejections.update(analysis.issues)
+                continue
+            ready_count += 1
+            if ready_first is None:
+                ready_first = candidate
+            ready_last = candidate
+        return HistoricalAnalysisReadiness(
+            dataset_id=store.metadata("dataset_id"),
+            coverage_start=first,
+            coverage_end=stop,
+            candidate_count=len(candidates),
+            analysis_ready_candidate_count=ready_count,
+            analysis_ready_first_boundary=ready_first,
+            analysis_ready_last_boundary=ready_last,
+            rejection_counts=tuple(sorted(rejections.items())),
+        )
 
     def run(
         self,

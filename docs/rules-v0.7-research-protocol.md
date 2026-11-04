@@ -24,6 +24,14 @@ boundaries. A readable partial market view is not analysis-ready unless all six
 required timeframes pass the analyzer. This is development analysis only and
 cannot authorize deployment or change the sealed 2022–2025 result.
 
+Development validation is staged. First run the market-only readiness audit;
+it must not load point-in-time risk evidence, evaluate signals, or calculate
+performance. If it reports zero analysis-ready boundaries, record
+`performance_verdict=NOT_RUN` and stop. Official risk acquisition and signal
+replay are separate later gates only after at least one complete analysis input
+exists. This avoids turning a blocked official-source download into invented
+risk data, and avoids downloading evidence that cannot affect a stopped run.
+
 ## Frozen v0.7 change
 
 Rules v0.7 makes one semantic scoring correction: setup agreement is normalized

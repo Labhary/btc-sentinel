@@ -17,6 +17,7 @@ btc-sentinel-fetch-monthly-history = "btc_sentinel.backtesting.monthly_archive_j
 btc-sentinel-build-risk-history = "btc_sentinel.backtesting.risk_derivation_job:main"
 btc-sentinel-fetch-risk-history = "btc_sentinel.backtesting.official_risk_job:main"
 btc-sentinel-run-history = "btc_sentinel.backtesting.full_job:main"
+btc-sentinel-audit-development-readiness = "btc_sentinel.backtesting.readiness_job:main"
 btc-sentinel-validate-history = "btc_sentinel.backtesting.job:main"
 btc-sentinel-validate-risk-history = "btc_sentinel.backtesting.risk_job:main"
 
