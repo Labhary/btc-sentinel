@@ -56,6 +56,9 @@ _BLS_TITLES = (
     "Job Openings and Labor Turnover",
     "Employment Cost Index",
 )
+_OFFICIAL_ARCHIVE_USER_AGENT = (
+    "Labhary btc-sentinel/official-history labhary@users.noreply.github.com"
+)
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -129,7 +132,7 @@ class UrllibOfficialPageDownloader:
                     method="GET",
                     headers={
                         "Accept": "text/html",
-                        "User-Agent": "btc-sentinel/official-history (+https://github.com/Labhary/btc-sentinel)",
+                        "User-Agent": _OFFICIAL_ARCHIVE_USER_AGENT,
                     },
                 )
                 with self.opener.open(request, timeout=self.timeout_seconds) as response:
@@ -156,7 +159,11 @@ class UrllibOfficialPageDownloader:
                 ):
                     break
                 self.sleeper(min(2 ** (attempt - 1), 5))
-        raise HistoricalDataError("Official archive download failed") from final_error
+        status = final_error.code if isinstance(final_error, HTTPError) else None
+        category = f"HTTP {status}" if status is not None else type(final_error).__name__
+        raise HistoricalDataError(
+            f"Official archive download failed for {urlsplit(url).hostname} ({category})"
+        ) from final_error
 
 
 class _Document(HTMLParser):

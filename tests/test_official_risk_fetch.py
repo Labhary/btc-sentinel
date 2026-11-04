@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 
 from btc_sentinel.backtesting import HistoricalDataError
 from btc_sentinel.backtesting.official_risk_fetch import (
+    _OFFICIAL_ARCHIVE_USER_AGENT,
     OfficialRiskArchiveBuilder,
     UrllibOfficialPageDownloader,
     _bls_records,
@@ -198,6 +199,9 @@ class OfficialRiskArchiveTests(TestCase):
         first = json.loads((risk / "risk-points.jsonl").read_text().splitlines()[0])
         self.assertEqual(first["decision"], "BLOCK")
         self.assertTrue(first["coverage_issues"][0]["required"])
+
+    def test_official_downloader_uses_contactable_user_agent(self) -> None:
+        self.assertRegex(_OFFICIAL_ARCHIVE_USER_AGENT, r"\S+@\S+\.\S+")
 
     def test_rejects_unapproved_url_and_overwrite(self) -> None:
         downloader = UrllibOfficialPageDownloader(maximum_attempts=1)
