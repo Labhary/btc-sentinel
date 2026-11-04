@@ -1,0 +1,20 @@
+{
+  "analysis_ready_boundaries": 0,
+  "analysis_ready_first_boundary": null,
+  "analysis_ready_last_boundary": null,
+  "coverage_end": "2022-01-01T00:00:00Z",
+  "coverage_start": "2021-01-01T00:00:00Z",
+  "evaluated_boundaries": 34970,
+  "event": "historical_analysis_readiness_completed",
+  "market_dataset_id": "binance-vision-btcusdt-development-2021-v1",
+  "market_manifest_sha256": "5553d8ed38b19fd6700cba9df2dadd4c9d25af8eeae681264c147401f7359b16",
+  "native_monthly_dataset_id": "binance-vision-btcusdt-native-monthly-development-2017-2021-v1",
+  "native_monthly_manifest_sha256": "776d0e5d035c0da480ebc9173a67438f72b874895f31e553e669233f9c75149c",
+  "performance_verdict": "NOT_RUN",
+  "rejection_counts": {
+    "1M analysis requires 50 completed candles": 25180,
+    "1w analysis requires 50 completed candles": 8831,
+    "historical market warm-up is incomplete": 959
+  },
+  "stop_reason": "NO_ANALYSIS_READY_BOUNDARIES"
+}
