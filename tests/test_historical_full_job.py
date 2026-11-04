@@ -79,6 +79,9 @@ def _report(variant: str):
 
 class FakeRun:
     candidate_count = 120
+    analysis_ready_candidate_count = 80
+    analysis_ready_first_boundary = START + timedelta(hours=4)
+    analysis_ready_last_boundary = END - timedelta(minutes=15)
     created_signal_count = 100
     rejection_counts = (("score below threshold", 20),)
 
@@ -129,6 +132,15 @@ class HistoricalFullJobTests(TestCase):
         self.assertEqual(payload["managed"]["verdict"], "PASSED")
         self.assertEqual(payload["managed"]["statistics"]["strict_win_rate_percent"], "61")
         self.assertEqual(payload["threshold_created_signals"], {"75": 100, "80": 100, "85": 100})
+        self.assertEqual(payload["analysis_ready_boundaries"], 80)
+        self.assertEqual(
+            payload["analysis_ready_first_boundary"],
+            "2024-01-01T04:00:00Z",
+        )
+        self.assertEqual(
+            payload["analysis_ready_last_boundary"],
+            "2024-01-01T23:45:00Z",
+        )
         self.assertEqual(payload["fixed"]["score_threshold_sensitivity"][0]["threshold"], 75)
 
     def test_existing_database_fails_closed_without_overwrite(self) -> None:

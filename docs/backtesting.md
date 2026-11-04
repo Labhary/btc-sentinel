@@ -285,6 +285,13 @@ the run completed; the JSON verdict may still be `FAILED` or `INCONCLUSIVE`.
 Without the native monthly supplement, declared one-minute outages can leave
 the long-horizon analysis without its fixed 50-candle warm-up.
 
+The report distinguishes the requested range from the boundaries whose complete
+six-timeframe input passed analysis. `analysis_ready_boundaries` counts those
+candidates; `analysis_ready_first_boundary` and `analysis_ready_last_boundary`
+report their inclusive UTC limits, or `null` when none were ready. Merely reading
+a partial market view does not make a boundary analysis-ready. These fields do
+not hide earlier warm-up rejections or imply that ready boundaries were continuous.
+
 The manual `Representative historical evaluation` GitHub Actions workflow runs
 that exact acquisition and evaluation sequence with read-only repository
 permissions. It retains the downloaded evidence, manifests, and JSON report for

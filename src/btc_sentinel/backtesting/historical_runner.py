@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from btc_sentinel.analysis.engine import ANALYSIS_INTERVALS, MultiTimeframeAnalyzer
-from btc_sentinel.analysis.models import TimeframeAnalysis
+from btc_sentinel.analysis.models import AnalysisStatus, TimeframeAnalysis
 from btc_sentinel.backtesting.engine import BacktestEngine
 from btc_sentinel.backtesting.models import (
     BacktestComparisonReport,
@@ -102,6 +102,9 @@ class HistoricalReplayRun:
     coverage_start: datetime
     coverage_end: datetime
     candidate_count: int
+    analysis_ready_candidate_count: int
+    analysis_ready_first_boundary: datetime | None
+    analysis_ready_last_boundary: datetime | None
     created_signal_count: int
     fixed_trades: tuple[BacktestTrade, ...]
     managed_trades: tuple[BacktestTrade, ...]
@@ -113,6 +116,10 @@ class HistoricalReplayRun:
     def __post_init__(self) -> None:
         object.__setattr__(self, "coverage_start", ensure_utc(self.coverage_start))
         object.__setattr__(self, "coverage_end", ensure_utc(self.coverage_end))
+        for name in ("analysis_ready_first_boundary", "analysis_ready_last_boundary"):
+            value = getattr(self, name)
+            if value is not None:
+                object.__setattr__(self, name, ensure_utc(value))
         for name in (
             "fixed_trades",
             "managed_trades",
@@ -126,8 +133,23 @@ class HistoricalReplayRun:
             or not self.strategy_version
             or self.coverage_end <= self.coverage_start
             or self.candidate_count < 0
+            or not 0 <= self.analysis_ready_candidate_count <= self.candidate_count
         ):
             raise DomainValidationError("Historical replay run range or count is invalid")
+        ready_boundaries = (
+            self.analysis_ready_first_boundary,
+            self.analysis_ready_last_boundary,
+        )
+        if self.analysis_ready_candidate_count == 0:
+            if any(value is not None for value in ready_boundaries):
+                raise DomainValidationError("Empty analysis-ready range cannot have boundaries")
+        elif (
+            any(value is None for value in ready_boundaries)
+            or self.analysis_ready_first_boundary < self.coverage_start
+            or self.analysis_ready_last_boundary >= self.coverage_end
+            or self.analysis_ready_last_boundary < self.analysis_ready_first_boundary
+        ):
+            raise DomainValidationError("Historical analysis-ready boundaries are invalid")
         if self.created_signal_count != len(self.fixed_trades) or self.created_signal_count != len(
             self.managed_trades
         ):
@@ -196,6 +218,9 @@ class HistoricalReplayRun:
             "coverage_start",
             "coverage_end",
             "candidate_count",
+            "analysis_ready_candidate_count",
+            "analysis_ready_first_boundary",
+            "analysis_ready_last_boundary",
             "risk_source_coverage",
             "excluded_features",
         )
@@ -285,6 +310,9 @@ class HistoricalReplayRunner:
 
         candidates = store.candidate_times(first, stop)
         states = {threshold: _ThresholdReplayState([], [], Counter()) for threshold in engines}
+        analysis_ready_candidate_count = 0
+        analysis_ready_first_boundary: datetime | None = None
+        analysis_ready_last_boundary: datetime | None = None
 
         for sequence, candidate in enumerate(candidates, start=1):
             try:
@@ -296,6 +324,7 @@ class HistoricalReplayRunner:
             risk = provider.assessment_at(candidate)
             self._validate_risk(candidate, risk)
             signal_id = format_signal_id(to_casablanca(candidate).date(), sequence)
+            candidate_analysis_ready: bool | None = None
             for threshold, engine in engines.items():
                 state = states[threshold]
                 active = (
@@ -309,6 +338,10 @@ class HistoricalReplayRunner:
                     candidate,
                     SignalHistory(state.last_signal_at, active),
                 )
+                if candidate_analysis_ready is None:
+                    candidate_analysis_ready = (
+                        evaluation.analysis.status is not AnalysisStatus.REJECTED
+                    )
                 if evaluation.decision is SignalDecision.NO_SIGNAL:
                     state.rejections.update(evaluation.rejection_reasons)
                     continue
@@ -318,6 +351,11 @@ class HistoricalReplayRunner:
                 state.managed.append(managed_trade)
                 state.last_signal_at = candidate
                 state.managed_active_until = managed_trade.terminal_at
+            if candidate_analysis_ready:
+                analysis_ready_candidate_count += 1
+                if analysis_ready_first_boundary is None:
+                    analysis_ready_first_boundary = candidate
+                analysis_ready_last_boundary = candidate
 
         dataset_id = store.metadata("dataset_id")
         return {
@@ -327,6 +365,9 @@ class HistoricalReplayRunner:
                 coverage_start=first,
                 coverage_end=stop,
                 candidate_count=len(candidates),
+                analysis_ready_candidate_count=analysis_ready_candidate_count,
+                analysis_ready_first_boundary=analysis_ready_first_boundary,
+                analysis_ready_last_boundary=analysis_ready_last_boundary,
                 created_signal_count=len(state.fixed),
                 fixed_trades=tuple(state.fixed),
                 managed_trades=tuple(state.managed),

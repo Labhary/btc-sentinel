@@ -102,6 +102,17 @@ def _run(args: argparse.Namespace) -> dict[str, object]:
             "coverage_start": iso_utc(args.start),
             "coverage_end": iso_utc(args.end),
             "evaluated_boundaries": run.candidate_count,
+            "analysis_ready_boundaries": run.analysis_ready_candidate_count,
+            "analysis_ready_first_boundary": (
+                None
+                if run.analysis_ready_first_boundary is None
+                else iso_utc(run.analysis_ready_first_boundary)
+            ),
+            "analysis_ready_last_boundary": (
+                None
+                if run.analysis_ready_last_boundary is None
+                else iso_utc(run.analysis_ready_last_boundary)
+            ),
             "created_signals": run.created_signal_count,
             "rejection_counts": dict(run.rejection_counts),
             "sensitivity_method": "independent_state_paths_common_primary_oos_windows",

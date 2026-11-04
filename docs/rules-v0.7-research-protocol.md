@@ -18,6 +18,12 @@ short pre-2022 interval with complete warm-up. Any development report must show
 the effective evaluated interval and may not disguise warm-up rejections as
 market observations.
 
+The machine-readable development report must retain the requested range, warm-up
+rejection count, analysis-ready boundary count, and first/last analysis-ready
+boundaries. A readable partial market view is not analysis-ready unless all six
+required timeframes pass the analyzer. This is development analysis only and
+cannot authorize deployment or change the sealed 2022–2025 result.
+
 ## Frozen v0.7 change
 
 Rules v0.7 makes one semantic scoring correction: setup agreement is normalized
