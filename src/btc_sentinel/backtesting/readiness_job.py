@@ -45,6 +45,11 @@ def _run(args: argparse.Namespace) -> dict[str, object]:
             if args.monthly_manifest is None
             else store.import_native_monthly_manifest(args.monthly_manifest)
         )
+        weekly = (
+            None
+            if args.weekly_manifest is None
+            else store.import_native_weekly_manifest(args.weekly_manifest)
+        )
         audit = HistoricalReplayRunner().audit_analysis_readiness(
             store,
             args.start,
@@ -58,6 +63,11 @@ def _run(args: argparse.Namespace) -> dict[str, object]:
             "native_monthly_dataset_id": None if monthly is None else monthly.dataset_id,
             "native_monthly_manifest_sha256": (
                 None if monthly is None else monthly.manifest_sha256
+            ),
+            "native_weekly_dataset_id": None if weekly is None else weekly.dataset_id,
+            "native_weekly_manifest_sha256": None if weekly is None else weekly.manifest_sha256,
+            "native_weekly_overlap_checked_count": (
+                None if weekly is None else weekly.overlap_checked_count
             ),
             "coverage_start": iso_utc(audit.coverage_start),
             "coverage_end": iso_utc(audit.coverage_end),
@@ -91,6 +101,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("start", type=_utc_argument)
     parser.add_argument("end", type=_utc_argument)
     parser.add_argument("--monthly-manifest", type=Path)
+    parser.add_argument("--weekly-manifest", type=Path)
     parser.add_argument("--work-directory", type=Path)
     args = parser.parse_args(argv)
     try:

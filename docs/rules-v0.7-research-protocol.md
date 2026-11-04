@@ -32,6 +32,11 @@ replay are separate later gates only after at least one complete analysis input
 exists. This avoids turning a blocked official-source download into invented
 risk data, and avoids downloading evidence that cannot affect a stopped run.
 
+The separately frozen `rules-v0.7-weekly-warmup-method.md` defines the native
+weekly development-only readiness experiment. Its acceptance criteria are
+fixed before its results: source integrity and exact overlap agreement, not
+signal count or performance. The original zero-ready report remains unchanged.
+
 ## Frozen v0.7 change
 
 Rules v0.7 makes one semantic scoring correction: setup agreement is normalized

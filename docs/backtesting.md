@@ -308,6 +308,16 @@ analysis-ready boundaries is a stop condition with
 `performance_verdict=NOT_RUN`; official risk acquisition and the full replay
 remain separate later gates.
 
+The frozen development-only weekly supplement is documented in
+`rules-v0.7-weekly-warmup-method.md`. Acquire January 2020 through November
+2021 native `1w` archives with `btc-sentinel-fetch-weekly-development-history
+2020-01 2021-12 OUTPUT --dataset-id ID`, then pass their manifest to the
+readiness command with `--weekly-manifest`. The loader deliberately refuses
+December 2021 and later archives. It verifies the published `.CHECKSUM` files
+and every expected Monday UTC candle. Import checks exact agreement with
+complete derived weekly candles and never changes one-minute data or gaps.
+The full signal replay does not yet accept this development supplement.
+
 The manual `Representative historical evaluation` GitHub Actions workflow runs
 that exact acquisition and evaluation sequence with read-only repository
 permissions. It retains the downloaded evidence, manifests, and JSON report for

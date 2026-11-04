@@ -1,5 +1,9 @@
 # BTC Sentinel
 
+For the current research/demo checkpoint and remaining gates, see
+[project progress](docs/progress.md). Historical implementation milestones
+below must not be confused with strategy acceptance or full-engine activation.
+
 BTC Sentinel is a BTC/USDT-only market-analysis and paper-trading alert bot. It
 is being built as a deterministic, auditable system: market levels come from
 market data and rules, not from a language model.

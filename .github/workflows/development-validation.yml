@@ -58,7 +58,24 @@ jobs:
             --monthly-manifest artifacts/monthly-2017-2021/monthly-manifest.json \
             | tee artifacts/development-report.json
 
-      - name: Verify audit fields
+      - name: Acquire frozen native weekly development warm-up
+        run: >-
+          btc-sentinel-fetch-weekly-development-history
+          2020-01 2021-12
+          artifacts/weekly-2020-2021
+          --dataset-id binance-vision-btcusdt-native-weekly-development-2020-2021-v1
+
+      - name: Audit readiness with native weekly inputs
+        run: |
+          btc-sentinel-audit-development-readiness \
+            artifacts/market-2021/manifest.json \
+            2021-01-01T00:00:00Z \
+            2022-01-01T00:00:00Z \
+            --monthly-manifest artifacts/monthly-2017-2021/monthly-manifest.json \
+            --weekly-manifest artifacts/weekly-2020-2021/weekly-manifest.json \
+            | tee artifacts/weekly-readiness-report.json
+
+      - name: Verify both audits remain readiness-only
         run: |
           python - <<'PY'
           import json
@@ -84,6 +101,27 @@ jobs:
               )
           if report["performance_verdict"] != "NOT_RUN":
               raise SystemExit("readiness audit must not report strategy performance")
+          weekly = json.loads(Path("artifacts/weekly-readiness-report.json").read_text())
+          if required - weekly.keys():
+              raise SystemExit("weekly readiness report is missing audit fields")
+          for field in (
+              "coverage_start", "coverage_end", "evaluated_boundaries",
+              "market_manifest_sha256", "native_monthly_manifest_sha256",
+          ):
+              if weekly[field] != report[field]:
+                  raise SystemExit(f"weekly supplement changed baseline field: {field}")
+          if weekly["performance_verdict"] != "NOT_RUN":
+              raise SystemExit("weekly readiness audit must not report strategy performance")
+          if weekly["native_weekly_overlap_checked_count"] < 1:
+              raise SystemExit("native weekly data was not cross-checked against derived weeks")
+          if len(weekly["native_weekly_manifest_sha256"]) != 64:
+              raise SystemExit("weekly input manifest hash is missing")
+          ready = weekly["analysis_ready_boundaries"]
+          if not 0 <= ready <= weekly["evaluated_boundaries"]:
+              raise SystemExit("weekly readiness count is invalid")
+          bounds = (weekly["analysis_ready_first_boundary"], weekly["analysis_ready_last_boundary"])
+          if (ready == 0) != (bounds == (None, None)):
+              raise SystemExit("weekly readiness bounds contradict its count")
           PY
 
       - name: Retain complete development evidence and report

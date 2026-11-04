@@ -54,10 +54,11 @@ class _NoRedirect(HTTPRedirectHandler):
 
 
 def _validate_url(url: str, interval: str) -> None:
-    if interval not in {"1m", "1mo"}:
+    if interval not in {"1m", "1mo", "1w"}:
         raise HistoricalDataError("Archive download interval is not allowlisted")
     prefix = f"/data/spot/monthly/klines/BTCUSDT/{interval}/"
-    archive_name = re.compile(rf"BTCUSDT-{interval}-\d{{4}}-\d{{2}}\.zip")
+    checksum_suffix = r"(?:\.CHECKSUM)?" if interval == "1w" else ""
+    archive_name = re.compile(rf"BTCUSDT-{interval}-\d{{4}}-\d{{2}}\.zip{checksum_suffix}")
     parsed = urlsplit(url)
     if (
         parsed.scheme != "https"
@@ -88,7 +89,7 @@ class UrllibArchiveDownloader:
             raise ValueError("Archive download size and timeout limits are invalid")
         if not 1 <= maximum_attempts <= 5:
             raise ValueError("Archive download attempts must be between 1 and 5")
-        if archive_interval not in {"1m", "1mo"}:
+        if archive_interval not in {"1m", "1mo", "1w"}:
             raise ValueError("Archive download interval is not allowlisted")
         self.maximum_bytes = maximum_bytes
         self.timeout_seconds = timeout_seconds
