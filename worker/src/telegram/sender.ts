@@ -14,10 +14,41 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function classifyFetchError(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "FETCH_ERROR_OTHER";
+  }
+  if (error.name === "AbortError") {
+    return "TIMEOUT";
+  }
+  const message = error.message.toLowerCase();
+  if (message.includes("network connection lost")) {
+    return "NETWORK_CONNECTION_LOST";
+  }
+  if (message.includes("cannot access") && message.includes("host")) {
+    return "HOST_UNREACHABLE";
+  }
+  if (message.includes("dns") || message.includes("resolve")) {
+    return "DNS_ERROR";
+  }
+  if (message.includes("tls") || message.includes("certificate")) {
+    return "TLS_ERROR";
+  }
+  if (error.name === "TypeError") {
+    return "TYPE_ERROR_OTHER";
+  }
+  return "FETCH_ERROR_OTHER";
+}
+
+function logDeliveryDiagnostic(category: string, status?: number): void {
+  const statusSuffix = status === undefined ? "" : ` status=${status}`;
+  console.error(`telegram_delivery_diagnostic category=${category}${statusSuffix}`);
+}
+
 export class TelegramApiSender implements TelegramSender {
   constructor(
     private readonly token: string,
-    private readonly fetchFunction: FetchFunction = fetch,
+    private readonly fetchFunction: FetchFunction = (input, init) => fetch(input, init),
     private readonly timeoutMilliseconds = 8_000,
   ) {}
 
@@ -26,12 +57,20 @@ export class TelegramApiSender implements TelegramSender {
     const timeout = setTimeout(() => controller.abort(), this.timeoutMilliseconds);
     let response: Response;
     try {
-      response = await this.fetchFunction(`https://api.telegram.org/bot${this.token}/sendMessage`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text }),
-        signal: controller.signal,
-      });
+      try {
+        response = await this.fetchFunction(
+          `https://api.telegram.org/bot${this.token}/sendMessage`,
+          {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ chat_id: chatId, text }),
+            signal: controller.signal,
+          },
+        );
+      } catch (error) {
+        logDeliveryDiagnostic(classifyFetchError(error));
+        throw error;
+      }
     } finally {
       clearTimeout(timeout);
     }
@@ -40,6 +79,7 @@ export class TelegramApiSender implements TelegramSender {
     try {
       payload = await response.json();
     } catch {
+      logDeliveryDiagnostic("UNREADABLE_RESPONSE", response.status);
       throw new Error("Telegram returned an unreadable response");
     }
     if (isRecord(payload) && payload.ok === false) {
@@ -50,10 +90,12 @@ export class TelegramApiSender implements TelegramSender {
       throw new TelegramRejectedError(code);
     }
     if (!response.ok || !isRecord(payload) || payload.ok !== true || !isRecord(payload.result)) {
+      logDeliveryDiagnostic("UNCERTAIN_RESPONSE", response.status);
       throw new Error("Telegram delivery result is uncertain");
     }
     const messageId = payload.result.message_id;
     if (typeof messageId !== "number" || !Number.isSafeInteger(messageId)) {
+      logDeliveryDiagnostic("INVALID_MESSAGE_ID", response.status);
       throw new Error("Telegram response did not contain a valid message ID");
     }
     return { messageId: String(messageId) };

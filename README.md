@@ -1,5 +1,9 @@
 # BTC Sentinel
 
+Private simulation demo: see [the fixed delivery and acceptance plan](docs/private-demo.md).
+The demo is separate from live strategy validation; scripted results are not
+performance evidence. Deployment requires a dedicated bot and Cloudflare resources.
+
 BTC Sentinel is a BTC/USDT-only market-analysis and paper-trading alert bot. It
 is being built as a deterministic, auditable system: market levels come from
 market data and rules, not from a language model.
