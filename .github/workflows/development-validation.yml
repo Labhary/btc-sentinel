@@ -6,6 +6,10 @@ on:
       - main
     paths:
       - .github/workflows/development-validation.yml
+      - src/btc_sentinel/backtesting/**
+      - src/btc_sentinel/analysis/**
+      - src/btc_sentinel/signals/**
+      - pyproject.toml
   workflow_dispatch:
 
 permissions:
