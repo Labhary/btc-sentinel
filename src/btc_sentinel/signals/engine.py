@@ -78,7 +78,7 @@ class SignalPolicy:
 class SignalEngine:
     """Recompute analysis and admit only selective, auditable pending setups."""
 
-    strategy_version = "rules-v0.6.0"
+    strategy_version = "rules-v0.7.0"
 
     def __init__(
         self,

@@ -134,6 +134,10 @@ Last updated: 2026-09-06
 - D1/state API, orchestration, outbox recovery, health reporting, and paper-job
   assembly are implemented behind independent hard-disabled gates.
 - Representative validation completed but did not satisfy the evidence gates.
+- Rules v0.7 research is isolated by a written protocol: 2022–2025 is closed to
+  tuning, and 2026 is an untouched one-run holdout after the strategy commit is
+  frozen. Its only planned strategy change normalizes scores across evidence
+  weights that are actually available.
 - Preview resource provisioning, encrypted secrets, webhook registration,
   preview verification, and activation are not complete.
 

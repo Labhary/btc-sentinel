@@ -26,9 +26,11 @@ class AnalysisEngineTests(TestCase):
         self.assertLessEqual(result.setup_quality_score, 59)
 
     def test_missing_optional_derivatives_degrades_analysis(self) -> None:
+        complete = MultiTimeframeAnalyzer().analyze(analysis_snapshot())
         result = MultiTimeframeAnalyzer().analyze(analysis_snapshot(derivatives=False))
         self.assertIs(result.status, AnalysisStatus.DEGRADED)
         self.assertIn("optional derivatives confirmation unavailable", result.issues)
+        self.assertEqual(result.setup_quality_score, complete.setup_quality_score)
 
     def test_missing_required_timeframe_rejects_analysis(self) -> None:
         snapshot = analysis_snapshot()
@@ -36,6 +38,26 @@ class AnalysisEngineTests(TestCase):
         result = MultiTimeframeAnalyzer().analyze(snapshot)
         self.assertIs(result.status, AnalysisStatus.REJECTED)
         self.assertEqual(result.setup_quality_score, 0)
+
+    def test_observed_neutral_or_conflicting_derivatives_still_reduce_score(self) -> None:
+        snapshot = analysis_snapshot()
+        for ratio in (Decimal("1"), Decimal("0.9")):
+            with self.subTest(ratio=ratio):
+                point = replace(
+                    snapshot.taker_volume[0],
+                    buy_volume=Decimal("100") * ratio,
+                    sell_volume=Decimal("100"),
+                    buy_sell_ratio=ratio,
+                )
+                result = MultiTimeframeAnalyzer().analyze(replace(snapshot, taker_volume=(point,)))
+                self.assertEqual(result.setup_quality_score, 90)
+
+    def test_normalization_does_not_override_conflict_gate(self) -> None:
+        result = MultiTimeframeAnalyzer().analyze(
+            analysis_snapshot({MarketInterval.ONE_WEEK: Decimal("-0.8")}, derivatives=False)
+        )
+        self.assertFalse(result.reliable)
+        self.assertLessEqual(result.setup_quality_score, 59)
 
     def test_incomplete_candle_rejects_analysis(self) -> None:
         snapshot = analysis_snapshot()

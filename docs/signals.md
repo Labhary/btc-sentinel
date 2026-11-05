@@ -47,11 +47,12 @@ is a deterministic modeling assumption, not a claim about future execution.
 Every admitted setup expires after four hours if its entry zone is not touched.
 The immutable record contains its original entry range, stop, targets,
 invalidation text, expiration text, evidence score, timeframe biases, risks,
-and strategy version `rules-v0.6.0`.
+and strategy version `rules-v0.7.0`.
 
 ## Honest limitations
 
-The 80-point threshold, ATR buffers, expiry, cooldown, cost rate, and risk
+The 80-point threshold, available-evidence score normalization, ATR buffers,
+expiry, cooldown, cost rate, and risk
 figures are conservative versioned starting rules. They are not optimized proof
 of profitability. In particular, the setup-quality score is not a win
 probability, and the project does not claim a 70% win rate. Phase 11 must test

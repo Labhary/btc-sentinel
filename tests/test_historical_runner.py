@@ -4,6 +4,7 @@ from decimal import Decimal
 from unittest import TestCase
 
 from btc_sentinel.analysis import MultiTimeframeAnalyzer
+from btc_sentinel.analysis.models import AnalysisStatus, Direction, MarketRegime
 from btc_sentinel.backtesting import (
     BacktestOutcome,
     HistoricalMarketView,
@@ -97,6 +98,26 @@ class ScoreByCandidateAnalyzer:
         return replace(self.result, setup_quality_score=score)
 
 
+class RejectedFirstAnalyzer:
+    def __init__(self) -> None:
+        self.result = MultiTimeframeAnalyzer().analyze(analysis_snapshot())
+
+    def analyze(self, snapshot):
+        if snapshot.captured_at != START:
+            return self.result
+        return replace(
+            self.result,
+            status=AnalysisStatus.REJECTED,
+            directional_bias=Direction.NEUTRAL,
+            regime=MarketRegime.NO_RELIABLE_REGIME,
+            setup_quality_score=0,
+            timeframes=(),
+            evidence_groups=(),
+            no_trade_reasons=("required analysis input rejected",),
+            issues=("1M analysis requires 50 completed candles",),
+        )
+
+
 class HistoricalRunnerTests(TestCase):
     def test_historical_analyzer_reuses_identical_timeframe_series(self) -> None:
         snapshot = analysis_snapshot()
@@ -113,6 +134,9 @@ class HistoricalRunnerTests(TestCase):
         run = HistoricalReplayRunner().run(store, START, END, ClearRiskProvider())
 
         self.assertEqual(run.candidate_count, 1)
+        self.assertEqual(run.analysis_ready_candidate_count, 1)
+        self.assertEqual(run.analysis_ready_first_boundary, START)
+        self.assertEqual(run.analysis_ready_last_boundary, START)
         self.assertEqual(run.created_signal_count, 1)
         self.assertTrue(run.performance_eligible)
         self.assertEqual(run.fixed_trades[0].outcome, BacktestOutcome.NO_FILL)
@@ -194,3 +218,33 @@ class HistoricalRunnerTests(TestCase):
                 END,
                 ClearRiskProvider(),
             )
+
+    def test_reports_effective_analysis_ready_boundaries_after_warmup(self) -> None:
+        later = START + timedelta(minutes=15)
+        run = HistoricalReplayRunner(SignalEngine(analyzer=RejectedFirstAnalyzer())).run(
+            FakeReplayStore((START, later)),
+            START,
+            END,
+            ClearRiskProvider(),
+        )
+
+        self.assertEqual(run.candidate_count, 2)
+        self.assertEqual(run.analysis_ready_candidate_count, 1)
+        self.assertEqual(run.analysis_ready_first_boundary, later)
+        self.assertEqual(run.analysis_ready_last_boundary, later)
+        self.assertIn("1M analysis requires 50 completed candles", dict(run.rejection_counts))
+
+    def test_readiness_audit_does_not_require_or_evaluate_risk(self) -> None:
+        later = START + timedelta(minutes=15)
+        audit = HistoricalReplayRunner(
+            SignalEngine(analyzer=RejectedFirstAnalyzer())
+        ).audit_analysis_readiness(FakeReplayStore((START, later)), START, END)
+
+        self.assertEqual(audit.candidate_count, 2)
+        self.assertEqual(audit.analysis_ready_candidate_count, 1)
+        self.assertEqual(audit.analysis_ready_first_boundary, later)
+        self.assertEqual(audit.analysis_ready_last_boundary, later)
+        self.assertEqual(
+            dict(audit.rejection_counts),
+            {"1M analysis requires 50 completed candles": 1},
+        )

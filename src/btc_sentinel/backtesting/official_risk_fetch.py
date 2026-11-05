@@ -7,6 +7,7 @@ import html
 import json
 import re
 import time
+import zlib
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -29,6 +30,9 @@ _FED_ARCHIVE = re.compile(r"/newsevents/pressreleases/(\d{4})-press-fomc\.htm")
 _FED_RELEASE = re.compile(r"/newsevents/pressreleases/monetary\d{8}[a-z]\.htm")
 _BLS_ARCHIVE = re.compile(r"/schedule/(\d{4})/home\.htm")
 _SEC_RELEASE = re.compile(r"/newsroom/press-releases/(\d{4})-[A-Za-z0-9-]+")
+_SEC_ARCHIVE_PATH_EXCEPTIONS = {
+    (2021, "/newsroom/press-releases/22021-67"),
+}
 _DATASET_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _EASTERN = ZoneInfo("America/New_York")
@@ -52,6 +56,9 @@ _BLS_TITLES = (
     "Employment Situation",
     "Job Openings and Labor Turnover",
     "Employment Cost Index",
+)
+_OFFICIAL_ARCHIVE_USER_AGENT = (
+    "Labhary btc-sentinel/official-history labhary@users.noreply.github.com"
 )
 
 
@@ -91,6 +98,29 @@ def _validate_url(url: str) -> None:
     raise HistoricalDataError("Official archive URL is outside the fixed source catalog")
 
 
+def _decode_payload(payload: bytes, content_encoding: str, maximum_bytes: int) -> bytes:
+    encoding = content_encoding.strip().lower()
+    if encoding in {"", "identity"}:
+        decoded = payload
+    elif encoding in {"gzip", "deflate"}:
+        decoder = zlib.decompressobj(31 if encoding == "gzip" else zlib.MAX_WBITS)
+        try:
+            decoded = decoder.decompress(payload, maximum_bytes + 1)
+        except zlib.error as exc:
+            raise HistoricalDataError("Official archive compression is invalid") from exc
+        if not decoder.eof or decoder.unconsumed_tail:
+            raise HistoricalDataError("Official archive response size is invalid")
+    else:
+        raise HistoricalDataError("Official archive used an unsupported content encoding")
+    if not decoded or len(decoded) > maximum_bytes:
+        raise HistoricalDataError("Official archive response size is invalid")
+    try:
+        decoded.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise HistoricalDataError("Official archive HTML is not UTF-8") from exc
+    return decoded
+
+
 class OfficialPageDownloader(Protocol):
     def fetch(self, url: str) -> bytes: ...
 
@@ -126,7 +156,8 @@ class UrllibOfficialPageDownloader:
                     method="GET",
                     headers={
                         "Accept": "text/html",
-                        "User-Agent": "btc-sentinel/official-history (+https://github.com/Labhary/btc-sentinel)",
+                        "Accept-Encoding": "gzip, deflate",
+                        "User-Agent": _OFFICIAL_ARCHIVE_USER_AGENT,
                     },
                 )
                 with self.opener.open(request, timeout=self.timeout_seconds) as response:
@@ -138,10 +169,11 @@ class UrllibOfficialPageDownloader:
                     if content_type not in {"text/html", "application/xhtml+xml"}:
                         raise HistoricalDataError("Official archive did not return HTML")
                     payload = response.read(self.maximum_bytes + 1)
-                    if not payload or len(payload) > self.maximum_bytes:
-                        raise HistoricalDataError("Official archive response size is invalid")
-                    payload.decode("utf-8")
-                    return payload
+                    return _decode_payload(
+                        payload,
+                        response.headers.get("Content-Encoding", ""),
+                        self.maximum_bytes,
+                    )
             except HistoricalDataError:
                 raise
             except (HTTPError, URLError, TimeoutError, OSError, UnicodeDecodeError) as exc:
@@ -153,7 +185,11 @@ class UrllibOfficialPageDownloader:
                 ):
                     break
                 self.sleeper(min(2 ** (attempt - 1), 5))
-        raise HistoricalDataError("Official archive download failed") from final_error
+        status = final_error.code if isinstance(final_error, HTTPError) else None
+        category = f"HTTP {status}" if status is not None else type(final_error).__name__
+        raise HistoricalDataError(
+            f"Official archive download failed for {urlsplit(url).hostname} ({category})"
+        ) from final_error
 
 
 class _Document(HTMLParser):
@@ -254,18 +290,30 @@ def _fed_record(payload: bytes, url: str, fallback_title: str) -> dict[str, obje
 
 def _sec_records(payload: bytes, year: int) -> tuple[dict[str, object], ...]:
     document = _document(payload)
-    releases = [
-        (urljoin(_SEC_ORIGIN, href), title)
-        for href, title in document.links
-        if _SEC_RELEASE.fullmatch(urlsplit(urljoin(_SEC_ORIGIN, href)).path)
-        and urlsplit(urljoin(_SEC_ORIGIN, href)).path.startswith(
+    releases = []
+    for href, title in document.links:
+        url = urljoin(_SEC_ORIGIN, href)
+        parsed_url = urlsplit(url)
+        path = parsed_url.path
+        if (
+            parsed_url.scheme != "https"
+            or parsed_url.netloc != "www.sec.gov"
+            or parsed_url.query
+            or parsed_url.fragment
+        ):
+            continue
+        ordinary = _SEC_RELEASE.fullmatch(path) and path.startswith(
             f"/newsroom/press-releases/{year}-"
         )
-    ]
+        if ordinary or (year, path) in _SEC_ARCHIVE_PATH_EXCEPTIONS:
+            releases.append((url, title))
     timestamps = []
     for value, _ in document.times:
         try:
-            parsed = datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(UTC)
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            if parsed.tzinfo is None or parsed.utcoffset() is None:
+                raise ValueError("publication timestamp must include a timezone")
+            parsed = parsed.astimezone(UTC)
         except ValueError as exc:
             raise HistoricalDataError(
                 "SEC archive contains an invalid publication timestamp"

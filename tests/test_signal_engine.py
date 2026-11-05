@@ -39,7 +39,7 @@ class SignalEngineTests(TestCase):
         assert result.signal is not None
         self.assertIs(result.signal.status, SignalStatus.PENDING)
         self.assertIs(result.signal.terms.side, Side.LONG)
-        self.assertEqual(result.signal.strategy_version, "rules-v0.6.0")
+        self.assertEqual(result.signal.strategy_version, "rules-v0.7.0")
 
     def test_targets_exceed_minimum_net_rr_after_costs(self) -> None:
         signal = self.evaluate().signal

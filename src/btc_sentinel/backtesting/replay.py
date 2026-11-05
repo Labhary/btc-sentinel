@@ -11,6 +11,12 @@ from pathlib import Path
 
 from btc_sentinel.backtesting.dataset import HistoricalDatasetLoader
 from btc_sentinel.backtesting.monthly_dataset import NativeMonthlyLoader, NativeMonthlySummary
+from btc_sentinel.backtesting.weekly_dataset import (
+    NativeWeeklyImportSummary,
+    NativeWeeklyLoader,
+    NativeWeeklyOverlapError,
+    NativeWeeklySource,
+)
 from btc_sentinel.errors import DomainValidationError
 from btc_sentinel.market_data.enums import MarketInterval, MarketVenue
 from btc_sentinel.market_data.models import (
@@ -318,6 +324,69 @@ class HistoricalReplayStore:
         self._series_cache.clear()
         return summary
 
+    def import_native_weekly_manifest(
+        self,
+        manifest_path: Path,
+        loader: NativeWeeklySource | None = None,
+    ) -> NativeWeeklyImportSummary:
+        if not self.connection.execute("SELECT 1 FROM replay_metadata LIMIT 1").fetchone():
+            raise DomainValidationError("One-minute replay history must be imported first")
+        if self.connection.execute(
+            "SELECT 1 FROM replay_metadata WHERE key = 'native_weekly_dataset_id'"
+        ).fetchone():
+            raise DomainValidationError("Native weekly replay history is already initialized")
+        source = loader or NativeWeeklyLoader()
+        base_start, _base_end = self.coverage()
+        overlaps = 0
+        try:
+            self.connection.execute("BEGIN")
+            candles: list[Candle] = []
+            summary = source.visit(manifest_path, candles.append)
+            if summary.coverage_start > base_start or summary.coverage_end <= base_start:
+                raise DomainValidationError(
+                    "Native weekly coverage must warm up and overlap the replay"
+                )
+            for candle in candles:
+                row = self.connection.execute(
+                    """
+                    SELECT open_time_ms, close_time_ms, open, high, low, close, volume,
+                           quote_volume, trade_count, taker_buy_base_volume, taker_buy_quote_volume
+                    FROM replay_candles WHERE interval = ? AND open_time_ms = ?
+                    """,
+                    (MarketInterval.ONE_WEEK.value, _epoch_milliseconds(candle.open_time)),
+                ).fetchone()
+                if row is not None:
+                    if self._row(MarketInterval.ONE_WEEK, row) != candle:
+                        raise NativeWeeklyOverlapError(
+                            candle, self._row(MarketInterval.ONE_WEEK, row), summary.manifest_sha256
+                        )
+                    overlaps += 1
+                else:
+                    self._insert(candle)
+            self.connection.executemany(
+                "INSERT INTO replay_metadata(key, value) VALUES (?, ?)",
+                (
+                    ("native_weekly_dataset_id", summary.dataset_id),
+                    ("native_weekly_manifest_sha256", summary.manifest_sha256),
+                    ("native_weekly_coverage_start", summary.coverage_start.isoformat()),
+                    ("native_weekly_coverage_end", summary.coverage_end.isoformat()),
+                    ("native_weekly_overlap_checked_count", str(overlaps)),
+                ),
+            )
+            self.connection.commit()
+        except Exception:
+            self.connection.rollback()
+            raise
+        self._series_cache.clear()
+        return NativeWeeklyImportSummary(
+            summary.dataset_id,
+            summary.manifest_sha256,
+            summary.coverage_start,
+            summary.coverage_end,
+            summary.candle_count,
+            overlaps,
+        )
+
     def _insert(self, candle: Candle) -> None:
         self.connection.execute(
             """
@@ -353,6 +422,11 @@ class HistoricalReplayStore:
             "native_monthly_manifest_sha256",
             "native_monthly_coverage_start",
             "native_monthly_coverage_end",
+            "native_weekly_dataset_id",
+            "native_weekly_manifest_sha256",
+            "native_weekly_coverage_start",
+            "native_weekly_coverage_end",
+            "native_weekly_overlap_checked_count",
         }:
             raise DomainValidationError("Unknown historical replay metadata key")
         row = self.connection.execute(

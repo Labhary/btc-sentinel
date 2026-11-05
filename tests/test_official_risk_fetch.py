@@ -1,5 +1,6 @@
 import json
 import tempfile
+import zlib
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest import TestCase
@@ -7,9 +8,11 @@ from urllib.parse import urlsplit
 
 from btc_sentinel.backtesting import HistoricalDataError
 from btc_sentinel.backtesting.official_risk_fetch import (
+    _OFFICIAL_ARCHIVE_USER_AGENT,
     OfficialRiskArchiveBuilder,
     UrllibOfficialPageDownloader,
     _bls_records,
+    _decode_payload,
     _fed_record,
     _sec_records,
 )
@@ -89,12 +92,47 @@ class OfficialRiskArchiveTests(TestCase):
         self.assertEqual(fed["published_at"], "2024-01-31T19:00:00+00:00")
         self.assertEqual(sec["published_at"], "2024-01-10T21:01:02+00:00")
 
+    def test_preserves_the_official_2021_sec_archive_path_typo(self) -> None:
+        records = _sec_records(
+            b'<time datetime="2021-04-05T16:50:03Z">April 5, 2021</time>'
+            b'<a href="/newsroom/press-releases/22021-67">SEC webcast</a>',
+            2021,
+        )
+
+        self.assertEqual(len(records), 1)
+        self.assertEqual(
+            records[0]["url"],
+            "https://www.sec.gov/newsroom/press-releases/22021-67",
+        )
+
     def test_bls_last_modified_time_creates_conservative_gap(self) -> None:
         records, gaps = _bls_records(_bls_page(2024, "January 15, 2024"), 2024)
         self.assertEqual(len(records), 12)
         self.assertEqual(gaps[0][0], datetime(2024, 1, 1, tzinfo=UTC))
         self.assertGreater(gaps[0][1], datetime(2024, 1, 15, tzinfo=UTC))
         self.assertEqual(records[0]["starts_at"], "2024-01-01T13:30:00+00:00")
+
+    def test_sec_exception_does_not_accept_foreign_hosts_or_other_typos(self) -> None:
+        for href in (
+            "https://example.com/newsroom/press-releases/22021-67",
+            "/newsroom/press-releases/22021-68",
+        ):
+            with self.subTest(href=href), self.assertRaises(HistoricalDataError):
+                _sec_records(
+                    (
+                        '<time datetime="2021-04-05T16:50:03Z">April 5</time>'
+                        f'<a href="{href}">SEC webcast</a>'
+                    ).encode(),
+                    2021,
+                )
+
+    def test_sec_naive_timestamp_is_rejected(self) -> None:
+        with self.assertRaisesRegex(HistoricalDataError, "invalid publication timestamp"):
+            _sec_records(
+                b'<time datetime="2021-04-05T16:50:03">April 5</time>'
+                b'<a href="/newsroom/press-releases/2021-67">SEC webcast</a>',
+                2021,
+            )
 
     def test_missing_bls_modified_date_blocks_the_entire_month(self) -> None:
         retrieved = datetime(2026, 1, 1, tzinfo=UTC)
@@ -163,6 +201,20 @@ class OfficialRiskArchiveTests(TestCase):
         first = json.loads((risk / "risk-points.jsonl").read_text().splitlines()[0])
         self.assertEqual(first["decision"], "BLOCK")
         self.assertTrue(first["coverage_issues"][0]["required"])
+
+    def test_official_downloader_uses_contactable_user_agent(self) -> None:
+        self.assertRegex(_OFFICIAL_ARCHIVE_USER_AGENT, r"\S+@\S+\.\S+")
+
+    def test_decodes_bounded_official_gzip_payload(self) -> None:
+        compressor = zlib.compressobj(wbits=31)
+        payload = compressor.compress(b"<html>official</html>") + compressor.flush()
+
+        self.assertEqual(
+            _decode_payload(payload, "gzip", 100),
+            b"<html>official</html>",
+        )
+        with self.assertRaisesRegex(HistoricalDataError, "response size"):
+            _decode_payload(payload, "gzip", 5)
 
     def test_rejects_unapproved_url_and_overwrite(self) -> None:
         downloader = UrllibOfficialPageDownloader(maximum_attempts=1)
