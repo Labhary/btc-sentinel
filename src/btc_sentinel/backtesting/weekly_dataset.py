@@ -9,7 +9,7 @@ import json
 import re
 import zipfile
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import UTC, datetime, timedelta
 from itertools import pairwise
 from pathlib import Path, PurePosixPath
@@ -31,6 +31,7 @@ from btc_sentinel.backtesting.dataset import (
     _strict_object,
     _utc,
 )
+from btc_sentinel.errors import DomainValidationError
 from btc_sentinel.market_data.enums import MarketInterval, MarketVenue
 from btc_sentinel.market_data.errors import MarketDataValidationError
 from btc_sentinel.market_data.models import Candle
@@ -117,6 +118,35 @@ class NativeWeeklySummary:
 @dataclass(frozen=True, slots=True)
 class NativeWeeklyImportSummary(NativeWeeklySummary):
     overlap_checked_count: int
+
+
+class NativeWeeklyOverlapError(DomainValidationError):
+    """Retain the exact public-data discrepancy without relaxing source agreement."""
+
+    def __init__(self, native: Candle, derived: Candle, manifest_sha256: str) -> None:
+        self.week_open = native.open_time
+        self.manifest_sha256 = manifest_sha256
+        self.differences = {
+            field.name: {
+                "native": str(getattr(native, field.name)),
+                "derived": str(getattr(derived, field.name)),
+            }
+            for field in fields(native)
+            if getattr(native, field.name) != getattr(derived, field.name)
+        }
+        super().__init__(
+            "Native weekly candle disagrees with complete one-minute-derived week "
+            f"at {native.open_time.isoformat()}: {','.join(self.differences)}"
+        )
+
+    def diagnostic_payload(self) -> dict[str, object]:
+        return {
+            "stop_reason": "NATIVE_WEEKLY_OVERLAP_CONFLICT",
+            "performance_verdict": "NOT_RUN",
+            "week_open": self.week_open.isoformat(),
+            "native_weekly_manifest_sha256": self.manifest_sha256,
+            "differences": self.differences,
+        }
 
 
 class NativeWeeklyLoader:

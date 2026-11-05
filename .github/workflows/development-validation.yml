@@ -15,6 +15,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   evaluate:
     runs-on: ubuntu-latest
@@ -65,6 +69,13 @@ jobs:
           artifacts/weekly-2020-2021
           --dataset-id binance-vision-btcusdt-native-weekly-development-2020-2021-v1
 
+      - name: Retain full weekly source-overlap diagnostic
+        run: |
+          python -m btc_sentinel.backtesting.weekly_overlap_job \
+            artifacts/market-2021/manifest.json \
+            artifacts/weekly-2020-2021/weekly-manifest.json \
+            | tee artifacts/weekly-overlap-diagnostic.json
+
       - name: Audit readiness with native weekly inputs
         run: |
           btc-sentinel-audit-development-readiness \
@@ -73,7 +84,15 @@ jobs:
             2022-01-01T00:00:00Z \
             --monthly-manifest artifacts/monthly-2017-2021/monthly-manifest.json \
             --weekly-manifest artifacts/weekly-2020-2021/weekly-manifest.json \
+            2> artifacts/weekly-readiness-error.json \
             | tee artifacts/weekly-readiness-report.json
+
+      - name: Show retained rejection diagnostic
+        if: failure()
+        run: |
+          if [ -s artifacts/weekly-readiness-error.json ]; then
+            cat artifacts/weekly-readiness-error.json
+          fi
 
       - name: Verify both audits remain readiness-only
         run: |

@@ -21,16 +21,25 @@ performance validation. Phase 13 forward paper observation has not started.
    preserved in `docs/evidence/rules-v0.7-development-readiness-2021.json`.
 3. Frozen native weekly development method: official archives for January 2020
    through November 2021 only. No strategy rule or performance criterion change.
+4. Native weekly experiment: strict import rejected. All 23 archives and their
+   published checksums passed, but 7 of 43 complete overlapping weeks disagree
+   in volume/trade fields. The first disagreement was independently reproduced
+   directly from 10,080 raw minute rows. See
+   `rules-v0.7-weekly-warmup-result.md` and the exact evidence under `docs/evidence/`.
 
 ## Current increment
 
-Implement and test strict published-checksum-bound native weekly import, then
-re-run both original and weekly-supplemented market-only readiness audits.
-No risk input, signal, trade or performance is evaluated in this increment.
+Strict weekly import and reproducible source diagnostics are implemented and
+tested. Source-integrity validation rejected this frozen method; this increment
+does not clear the readiness gate. Ordinary CI passes; the development evidence
+workflow is intentionally blocked by the observed source conflict, not accepted.
+No risk input, signal, trade or performance was evaluated in this increment.
 
 ## Remaining gates
 
-1. Confirm complete development analysis inputs exist and retain exact results.
+1. Resolve or independently justify the pre-2022 source-consistency method;
+   freeze a separate method before another readiness experiment. Then confirm
+   complete development analysis inputs exist and retain exact results.
 2. Validate point-in-time official risk evidence through an approved acquisition
    path; SEC downloads from GitHub runners have returned HTTP 403.
 3. Freeze development replay inputs/method and run research diagnostics.

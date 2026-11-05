@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import TestCase
+from unittest.mock import MagicMock, patch
 
 from btc_sentinel.backtesting.archive_fetch import ArchiveDownload, _validate_url
 from btc_sentinel.backtesting.dataset import HistoricalDataError
@@ -15,8 +16,10 @@ from btc_sentinel.backtesting.replay import HistoricalReplayStore
 from btc_sentinel.backtesting.weekly_dataset import (
     BinanceVisionWeeklyBuilder,
     NativeWeeklyLoader,
+    NativeWeeklyOverlapError,
     _weekly_opens,
 )
+from btc_sentinel.backtesting.weekly_overlap_job import diagnose
 from btc_sentinel.errors import DomainValidationError
 from btc_sentinel.market_data.enums import MarketInterval
 
@@ -207,6 +210,36 @@ class NativeWeeklyDatasetTests(TestCase):
                 "native-weekly-fixture",
             )
 
+    def test_diagnostic_records_all_conflicts_without_importing_weekly_data(self) -> None:
+        from btc_sentinel.backtesting.weekly_dataset import _candle
+
+        store = MagicMock()
+        store.__enter__.return_value = store
+        store.import_manifest.return_value = SimpleNamespace(manifest_sha256="a" * 64)
+        store.coverage.return_value = (
+            datetime(2021, 1, 1, tzinfo=UTC),
+            datetime(2022, 1, 1, tzinfo=UTC),
+        )
+
+        def series(_interval, boundary, *, limit):
+            opened = boundary - timedelta(days=7)
+            if opened.year != 2021:
+                raise DomainValidationError("No completed historical 1w candles")
+            candle = _candle(_row(opened), opened)
+            if opened.day == 4:
+                candle = replace(candle, trade_count=99)
+            return SimpleNamespace(latest=candle)
+
+        store.series_at.side_effect = series
+        with patch(
+            "btc_sentinel.backtesting.weekly_overlap_job.HistoricalReplayStore", return_value=store
+        ):
+            result = diagnose(Path("unused"), self.path)
+        self.assertEqual(result["overlap_count"], 4)
+        self.assertEqual(result["conflict_count"], 1)
+        self.assertEqual(result["performance_verdict"], "NOT_RUN")
+        store.import_native_weekly_manifest.assert_not_called()
+
     def test_import_preserves_minutes_candidates_and_future_visibility(self) -> None:
         with HistoricalReplayStore(self.root / "replay.sqlite3") as store:
             store.import_manifest(Path("unused"), FakeMinuteLoader())
@@ -246,8 +279,14 @@ class NativeWeeklyDatasetTests(TestCase):
                     "SELECT * FROM replay_candles ORDER BY interval, open_time_ms"
                 ).fetchall()
                 if conflict:
-                    with self.assertRaisesRegex(DomainValidationError, "disagrees"):
+                    with self.assertRaisesRegex(NativeWeeklyOverlapError, "disagrees") as error:
                         store.import_native_weekly_manifest(self.path)
+                    diagnostic = error.exception.diagnostic_payload()
+                    self.assertEqual(diagnostic["stop_reason"], "NATIVE_WEEKLY_OVERLAP_CONFLICT")
+                    self.assertEqual(diagnostic["performance_verdict"], "NOT_RUN")
+                    self.assertEqual(
+                        diagnostic["differences"], {"trade_count": {"native": "5", "derived": "99"}}
+                    )
                     self.assertEqual(
                         before,
                         store.connection.execute(

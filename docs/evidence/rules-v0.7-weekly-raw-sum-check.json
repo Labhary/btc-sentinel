@@ -1,0 +1,12 @@
+{
+  "event": "independent_raw_minute_sum_check",
+  "week_open": "2021-01-18T00:00:00Z",
+  "row_count": 10080,
+  "continuous_open_times": true,
+  "volume": "640226.93578500",
+  "trade_count": 14699334,
+  "quote_volume": "21440700273.04002577",
+  "market_manifest_sha256": "5553d8ed38b19fd6700cba9df2dadd4c9d25af8eeae681264c147401f7359b16",
+  "method": "Independent direct CSV sums of fields 5, 8 and 7 for the exact week; no replay resampler used",
+  "performance_verdict": "NOT_RUN"
+}

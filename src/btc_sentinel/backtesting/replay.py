@@ -14,6 +14,7 @@ from btc_sentinel.backtesting.monthly_dataset import NativeMonthlyLoader, Native
 from btc_sentinel.backtesting.weekly_dataset import (
     NativeWeeklyImportSummary,
     NativeWeeklyLoader,
+    NativeWeeklyOverlapError,
 )
 from btc_sentinel.errors import DomainValidationError
 from btc_sentinel.market_data.enums import MarketInterval, MarketVenue
@@ -355,8 +356,8 @@ class HistoricalReplayStore:
                 ).fetchone()
                 if row is not None:
                     if self._row(MarketInterval.ONE_WEEK, row) != candle:
-                        raise DomainValidationError(
-                            "Native weekly candle disagrees with complete one-minute-derived week"
+                        raise NativeWeeklyOverlapError(
+                            candle, self._row(MarketInterval.ONE_WEEK, row), summary.manifest_sha256
                         )
                     overlaps += 1
                 else:

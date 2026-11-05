@@ -12,6 +12,7 @@ from pathlib import Path
 
 from btc_sentinel.backtesting.historical_runner import HistoricalReplayRunner
 from btc_sentinel.backtesting.replay import HistoricalReplayStore
+from btc_sentinel.backtesting.weekly_dataset import NativeWeeklyOverlapError
 from btc_sentinel.errors import DomainValidationError
 from btc_sentinel.time_utils import iso_utc
 
@@ -107,9 +108,15 @@ def main(argv: list[str] | None = None) -> int:
     try:
         payload = _run(args)
     except Exception as exc:
+        error: dict[str, object] = {
+            "event": "historical_analysis_readiness_failed",
+            "error": str(exc),
+        }
+        if isinstance(exc, NativeWeeklyOverlapError):
+            error.update(exc.diagnostic_payload())
         print(
             json.dumps(
-                {"event": "historical_analysis_readiness_failed", "error": str(exc)},
+                error,
                 sort_keys=True,
             ),
             file=sys.stderr,

@@ -1,0 +1,185 @@
+{
+  "conflict_count": 7,
+  "conflicts": [
+    {
+      "differences": {
+        "quote_volume": {
+          "derived": "21440700273.04002577",
+          "native": "21335137260.47123014"
+        },
+        "taker_buy_base_volume": {
+          "derived": "310786.11597300",
+          "native": "309335.86704800"
+        },
+        "taker_buy_quote_volume": {
+          "derived": "10418110249.14201343",
+          "native": "10370259553.73558055"
+        },
+        "trade_count": {
+          "derived": "14699334",
+          "native": "14638581"
+        },
+        "volume": {
+          "derived": "640226.93578500",
+          "native": "637026.04205300"
+        }
+      },
+      "week_open": "2021-01-18T00:00:00+00:00"
+    },
+    {
+      "differences": {
+        "quote_volume": {
+          "derived": "21599773383.36641715",
+          "native": "21599895189.58115991"
+        },
+        "taker_buy_base_volume": {
+          "derived": "291987.51039500",
+          "native": "291987.98069400"
+        },
+        "taker_buy_quote_volume": {
+          "derived": "10814268058.21933513",
+          "native": "10814285526.14571773"
+        },
+        "trade_count": {
+          "derived": "13814957",
+          "native": "13815026"
+        },
+        "volume": {
+          "derived": "583439.05164800",
+          "native": "583442.33154400"
+        }
+      },
+      "week_open": "2021-02-01T00:00:00+00:00"
+    },
+    {
+      "differences": {
+        "quote_volume": {
+          "derived": "21437282043.97616032",
+          "native": "21438740639.10086236"
+        },
+        "taker_buy_base_volume": {
+          "derived": "183312.63757000",
+          "native": "183319.19749100"
+        },
+        "taker_buy_quote_volume": {
+          "derived": "10696680145.51880710",
+          "native": "10697064859.42124876"
+        },
+        "trade_count": {
+          "derived": "11890469",
+          "native": "11891110"
+        },
+        "volume": {
+          "derived": "367453.02071200",
+          "native": "367477.89327300"
+        }
+      },
+      "week_open": "2021-03-29T00:00:00+00:00"
+    },
+    {
+      "differences": {
+        "quote_volume": {
+          "derived": "16753719613.70466222",
+          "native": "16753728276.42880147"
+        },
+        "taker_buy_base_volume": {
+          "derived": "180333.28978900",
+          "native": "180333.29957300"
+        },
+        "taker_buy_quote_volume": {
+          "derived": "8448609733.40781856",
+          "native": "8448610167.56694816"
+        },
+        "trade_count": {
+          "derived": "12498097",
+          "native": "12498107"
+        },
+        "volume": {
+          "derived": "357634.26693600",
+          "native": "357634.46215500"
+        }
+      },
+      "week_open": "2021-08-16T00:00:00+00:00"
+    },
+    {
+      "differences": {
+        "quote_volume": {
+          "derived": "18788594620.95236861",
+          "native": "18788601896.91996211"
+        },
+        "taker_buy_base_volume": {
+          "derived": "212146.85018300",
+          "native": "212146.86731300"
+        },
+        "taker_buy_quote_volume": {
+          "derived": "9120023641.66992267",
+          "native": "9120024387.11685157"
+        },
+        "trade_count": {
+          "derived": "10306732",
+          "native": "10306745"
+        },
+        "volume": {
+          "derived": "437174.06485000",
+          "native": "437174.23273000"
+        }
+      },
+      "week_open": "2021-09-20T00:00:00+00:00"
+    },
+    {
+      "differences": {
+        "quote_volume": {
+          "derived": "21141197140.64780120",
+          "native": "21141785986.45504030"
+        },
+        "taker_buy_base_volume": {
+          "derived": "167400.47260000",
+          "native": "167403.56447000"
+        },
+        "taker_buy_quote_volume": {
+          "derived": "10527955091.48477517",
+          "native": "10528144211.85324447"
+        },
+        "trade_count": {
+          "derived": "10979053",
+          "native": "10979311"
+        },
+        "volume": {
+          "derived": "336357.38139000",
+          "native": "336367.00881000"
+        }
+      },
+      "week_open": "2021-10-18T00:00:00+00:00"
+    },
+    {
+      "differences": {
+        "quote_volume": {
+          "derived": "19208389410.71364980",
+          "native": "19208389552.55153220"
+        },
+        "taker_buy_base_volume": {
+          "derived": "154915.87362000",
+          "native": "154915.87466000"
+        },
+        "taker_buy_quote_volume": {
+          "derived": "9451414326.10330730",
+          "native": "9451414390.23870330"
+        },
+        "trade_count": {
+          "derived": "10574776",
+          "native": "10574780"
+        },
+        "volume": {
+          "derived": "314971.84750000",
+          "native": "314971.84980000"
+        }
+      },
+      "week_open": "2021-10-25T00:00:00+00:00"
+    }
+  ],
+  "event": "weekly_overlap_diagnostic",
+  "market_manifest_sha256": "5553d8ed38b19fd6700cba9df2dadd4c9d25af8eeae681264c147401f7359b16",
+  "overlap_count": 43,
+  "performance_verdict": "NOT_RUN",
+  "weekly_manifest_sha256": "e3e464844f60df885302ed82788da6fff6757c22a8254b48f566cac1815bf1e5"
+}
