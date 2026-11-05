@@ -53,12 +53,17 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def _validate_url(url: str, interval: str) -> None:
+def _validate_url(url: str, interval: str, frequency: str = "monthly") -> None:
     if interval not in {"1m", "1mo", "1w"}:
         raise HistoricalDataError("Archive download interval is not allowlisted")
-    prefix = f"/data/spot/monthly/klines/BTCUSDT/{interval}/"
-    checksum_suffix = r"(?:\.CHECKSUM)?" if interval == "1w" else ""
-    archive_name = re.compile(rf"BTCUSDT-{interval}-\d{{4}}-\d{{2}}\.zip{checksum_suffix}")
+    if frequency not in {"monthly", "daily"} or (frequency == "daily" and interval != "1m"):
+        raise HistoricalDataError("Archive frequency/interval pair is not allowlisted")
+    prefix = f"/data/spot/{frequency}/klines/BTCUSDT/{interval}/"
+    date_suffix = r"-\d{2}" if frequency == "daily" else ""
+    checksum_suffix = r"(?:\.CHECKSUM)?" if interval == "1w" or frequency == "daily" else ""
+    archive_name = re.compile(
+        rf"BTCUSDT-{interval}-\d{{4}}-\d{{2}}{date_suffix}\.zip{checksum_suffix}"
+    )
     parsed = urlsplit(url)
     if (
         parsed.scheme != "https"
@@ -83,6 +88,7 @@ class UrllibArchiveDownloader:
         timeout_seconds: float = 30,
         maximum_attempts: int = 3,
         archive_interval: str = "1m",
+        archive_frequency: str = "monthly",
         sleeper: Callable[[float], None] = time.sleep,
     ) -> None:
         if maximum_bytes < 1 or not 0 < timeout_seconds <= 60:
@@ -91,15 +97,20 @@ class UrllibArchiveDownloader:
             raise ValueError("Archive download attempts must be between 1 and 5")
         if archive_interval not in {"1m", "1mo", "1w"}:
             raise ValueError("Archive download interval is not allowlisted")
+        if archive_frequency not in {"monthly", "daily"} or (
+            archive_frequency == "daily" and archive_interval != "1m"
+        ):
+            raise ValueError("Archive frequency/interval pair is not allowlisted")
         self.maximum_bytes = maximum_bytes
         self.timeout_seconds = timeout_seconds
         self.maximum_attempts = maximum_attempts
         self.archive_interval = archive_interval
+        self.archive_frequency = archive_frequency
         self.sleeper = sleeper
         self.opener = build_opener(_NoRedirect())
 
     def download(self, url: str, destination: Path) -> ArchiveDownload:
-        _validate_url(url, self.archive_interval)
+        _validate_url(url, self.archive_interval, self.archive_frequency)
         if destination.exists():
             raise HistoricalDataError("Archive download destination already exists")
         final_error: Exception | None = None

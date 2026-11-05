@@ -1,0 +1,23 @@
+{
+  "event": "three_way_minute_source_diagnostic",
+  "day": "2021-01-11",
+  "rows_per_source": 1440,
+  "daily_publisher_checksum_verified": true,
+  "monthly_vs_daily_conflicts": 10,
+  "monthly_vs_rest_conflicts": 10,
+  "daily_vs_rest_conflicts": 0,
+  "sums": {
+    "monthly": {"volume": "249131.53994300", "trade_count": 4431451, "quote_volume": "8426879770.74001051"},
+    "daily": {"volume": "251156.13828700", "trade_count": 4472957, "quote_volume": "8497730017.89850578"},
+    "rest": {"volume": "251156.13828700", "trade_count": 4472957, "quote_volume": "8497730017.89850578"},
+    "parent_daily_rest": {"volume": "251156.13828700", "trade_count": 4472957, "quote_volume": "8497730017.89850578"}
+  },
+  "weekly_rest_response_rows": 100,
+  "weekly_rest_vs_original_minute_complete_overlaps": 43,
+  "weekly_rest_vs_original_minute_conflicts": 7,
+  "weekly_rest_response_sha256": "6fa353c7a7dd6981e3b6a44a744b09404b0889fcba77602c136b09a781151076",
+  "daily_rest_response_rows": 365,
+  "daily_rest_vs_complete_original_minute_conflicts": 13,
+  "daily_rest_response_sha256": "84f5a53150952bedc8d3b4901a385e4e49c089a666d2731a7314ffe7a1e67102",
+  "performance_verdict": "NOT_RUN"
+}

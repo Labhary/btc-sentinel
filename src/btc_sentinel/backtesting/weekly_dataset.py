@@ -13,6 +13,7 @@ from dataclasses import dataclass, fields
 from datetime import UTC, datetime, timedelta
 from itertools import pairwise
 from pathlib import Path, PurePosixPath
+from typing import Protocol
 
 from btc_sentinel.backtesting.archive_fetch import (
     ArchiveDownloader,
@@ -113,6 +114,10 @@ class NativeWeeklySummary:
     coverage_start: datetime
     coverage_end: datetime
     candle_count: int
+
+
+class NativeWeeklySource(Protocol):
+    def visit(self, path: Path, visitor: Callable[[Candle], None]) -> NativeWeeklySummary: ...
 
 
 @dataclass(frozen=True, slots=True)

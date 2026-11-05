@@ -30,7 +30,7 @@ class FakeStore:
     def import_native_monthly_manifest(self, _path):
         return SimpleNamespace(dataset_id="monthly", manifest_sha256="b" * 64)
 
-    def import_native_weekly_manifest(self, _path):
+    def import_native_weekly_manifest(self, _path, *, loader=None):
         return SimpleNamespace(
             dataset_id="weekly", manifest_sha256="c" * 64, overlap_checked_count=40
         )
@@ -52,6 +52,25 @@ class FakeRunner:
 
 
 class DevelopmentReadinessJobTests(TestCase):
+    def test_accepts_separate_rest_snapshot_without_changing_exact_overlap_import(self) -> None:
+        output = StringIO()
+        with (
+            patch("btc_sentinel.backtesting.readiness_job.HistoricalReplayStore", FakeStore),
+            patch("btc_sentinel.backtesting.readiness_job.HistoricalReplayRunner", FakeRunner),
+            redirect_stdout(output),
+        ):
+            result = main(
+                [
+                    "market.json",
+                    START.isoformat(),
+                    END.isoformat(),
+                    "--weekly-rest-manifest",
+                    "rest.json",
+                ]
+            )
+        self.assertEqual(result, 0)
+        self.assertEqual(json.loads(output.getvalue())["native_weekly_source"], "REST")
+
     def test_emits_weekly_provenance_without_risk_signals_or_performance(self) -> None:
         output = StringIO()
         with (

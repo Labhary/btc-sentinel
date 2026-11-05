@@ -76,8 +76,9 @@ jobs:
             artifacts/weekly-2020-2021/weekly-manifest.json \
             | tee artifacts/weekly-overlap-diagnostic.json
 
-      - name: Audit readiness with native weekly inputs
+      - name: Verify frozen archive method remains rejected
         run: |
+          set +e
           btc-sentinel-audit-development-readiness \
             artifacts/market-2021/manifest.json \
             2021-01-01T00:00:00Z \
@@ -86,15 +87,15 @@ jobs:
             --weekly-manifest artifacts/weekly-2020-2021/weekly-manifest.json \
             2> artifacts/weekly-readiness-error.json \
             | tee artifacts/weekly-readiness-report.json
-
-      - name: Show retained rejection diagnostic
-        if: failure()
-        run: |
-          if [ -s artifacts/weekly-readiness-error.json ]; then
-            cat artifacts/weekly-readiness-error.json
+          audit_exit=${PIPESTATUS[0]}
+          set -e
+          if [ "$audit_exit" -ne 1 ]; then
+            echo "Frozen rejected method no longer produced its expected rejection; review required"
+            exit 1
           fi
+          cat artifacts/weekly-readiness-error.json
 
-      - name: Verify both audits remain readiness-only
+      - name: Verify preserved baseline and rejected-method regression
         run: |
           python - <<'PY'
           import json
@@ -120,28 +121,102 @@ jobs:
               )
           if report["performance_verdict"] != "NOT_RUN":
               raise SystemExit("readiness audit must not report strategy performance")
-          weekly = json.loads(Path("artifacts/weekly-readiness-report.json").read_text())
-          if required - weekly.keys():
-              raise SystemExit("weekly readiness report is missing audit fields")
-          for field in (
-              "coverage_start", "coverage_end", "evaluated_boundaries",
-              "market_manifest_sha256", "native_monthly_manifest_sha256",
-          ):
-              if weekly[field] != report[field]:
-                  raise SystemExit(f"weekly supplement changed baseline field: {field}")
-          if weekly["performance_verdict"] != "NOT_RUN":
-              raise SystemExit("weekly readiness audit must not report strategy performance")
-          if weekly["native_weekly_overlap_checked_count"] < 1:
-              raise SystemExit("native weekly data was not cross-checked against derived weeks")
-          if len(weekly["native_weekly_manifest_sha256"]) != 64:
-              raise SystemExit("weekly input manifest hash is missing")
-          ready = weekly["analysis_ready_boundaries"]
-          if not 0 <= ready <= weekly["evaluated_boundaries"]:
-              raise SystemExit("weekly readiness count is invalid")
-          bounds = (weekly["analysis_ready_first_boundary"], weekly["analysis_ready_last_boundary"])
-          if (ready == 0) != (bounds == (None, None)):
-              raise SystemExit("weekly readiness bounds contradict its count")
+          error = json.loads(Path("artifacts/weekly-readiness-error.json").read_text())
+          overlap = json.loads(Path("artifacts/weekly-overlap-diagnostic.json").read_text())
+          if error.get("stop_reason") != "NATIVE_WEEKLY_OVERLAP_CONFLICT":
+              raise SystemExit("Unexpected rejected-method failure category")
+          if error.get("performance_verdict") != "NOT_RUN":
+              raise SystemExit("Rejected method must not evaluate performance")
+          if (overlap["overlap_count"], overlap["conflict_count"]) != (43, 7):
+              raise SystemExit("Frozen archive overlap evidence changed; review required")
+          if error["native_weekly_manifest_sha256"] != overlap["weekly_manifest_sha256"]:
+              raise SystemExit("Rejected-method diagnostic is not bound to compared data")
           PY
+
+      - name: Acquire full-year daily-minute development source
+        run: |
+          python -m btc_sentinel.backtesting.development_daily \
+            artifacts/market-daily-2021 \
+            --dataset-id binance-vision-btcusdt-daily-development-2021-v1 \
+            | tee artifacts/daily-acquisition-summary.json
+
+      - name: Retain and repeat-check bounded weekly REST source
+        run: |
+          python -m btc_sentinel.backtesting.development_rest_weekly \
+            artifacts/weekly-rest \
+            --dataset-id binance-rest-btcusdt-weekly-development-2020-2021-v1
+
+      - name: Audit frozen daily-plus-REST method with exact source agreement
+        run: |
+          btc-sentinel-audit-development-readiness \
+            artifacts/market-daily-2021/manifest.json \
+            2021-01-01T00:00:00Z \
+            2022-01-01T00:00:00Z \
+            --monthly-manifest artifacts/monthly-2017-2021/monthly-manifest.json \
+            --weekly-rest-manifest artifacts/weekly-rest/weekly-rest-manifest.json \
+            2> artifacts/daily-rest-readiness-error.json \
+            | tee artifacts/daily-rest-readiness-report.json
+
+      - name: Verify method 2 provenance and retain full source metrics
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from datetime import datetime
+          from pathlib import Path
+
+          baseline = json.loads(Path("artifacts/development-report.json").read_text())
+          report = json.loads(Path("artifacts/daily-rest-readiness-report.json").read_text())
+          for key in ("coverage_start", "coverage_end", "native_monthly_manifest_sha256"):
+              if report[key] != baseline[key]:
+                  raise SystemExit(f"Frozen method changed field: {key}")
+          if report["performance_verdict"] != "NOT_RUN" or report["native_weekly_source"] != "REST":
+              raise SystemExit("Method 2 must remain a REST-sourced readiness-only audit")
+          if report["native_weekly_overlap_checked_count"] < 1:
+              raise SystemExit("Method 2 did not check complete overlapping weeks")
+          ready = report["analysis_ready_boundaries"]
+          if not 0 <= ready <= report["evaluated_boundaries"]:
+              raise SystemExit("Invalid readiness count")
+          if ready and not all(report[key] for key in (
+              "analysis_ready_first_boundary", "analysis_ready_last_boundary"
+          )):
+              raise SystemExit("Missing effective readiness bounds")
+
+          def metrics(path):
+              raw = path.read_bytes()
+              value = json.loads(raw)
+              return {
+                  "dataset_id": value["dataset_id"],
+                  "manifest_sha256": hashlib.sha256(raw).hexdigest(),
+                  "archives": len(value["archives"]),
+                  "raw_rows": sum(item["row_count"] for item in value["archives"]),
+                  "close_time_anomalies": sum(len(item["close_time_anomalies"]) for item in value["archives"]),
+                  "excluded_minutes": sum(
+                      int((datetime.fromisoformat(gap["end"].replace("Z", "+00:00"))
+                           - datetime.fromisoformat(gap["start"].replace("Z", "+00:00"))).total_seconds() // 60)
+                      for item in value["archives"] for gap in item["missing_intervals"]
+                  ),
+              }
+          summary = {
+              "event": "development_source_method_comparison",
+              "original": metrics(Path("artifacts/market-2021/manifest.json")),
+              "daily": metrics(Path("artifacts/market-daily-2021/manifest.json")),
+              "original_candidates": baseline["evaluated_boundaries"],
+              "daily_candidates": report["evaluated_boundaries"],
+              "original_ready": baseline["analysis_ready_boundaries"],
+              "daily_ready": ready,
+              "performance_verdict": "NOT_RUN",
+          }
+          Path("artifacts/source-method-comparison.json").write_text(json.dumps(summary, sort_keys=True, indent=2) + "\n")
+          print(json.dumps(summary, sort_keys=True))
+          PY
+
+      - name: Show retained method 2 rejection if present
+        if: failure()
+        run: |
+          if [ -s artifacts/daily-rest-readiness-error.json ]; then
+            cat artifacts/daily-rest-readiness-error.json
+          fi
 
       - name: Retain complete development evidence and report
         if: always()

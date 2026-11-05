@@ -15,6 +15,7 @@ from btc_sentinel.backtesting.weekly_dataset import (
     NativeWeeklyImportSummary,
     NativeWeeklyLoader,
     NativeWeeklyOverlapError,
+    NativeWeeklySource,
 )
 from btc_sentinel.errors import DomainValidationError
 from btc_sentinel.market_data.enums import MarketInterval, MarketVenue
@@ -326,7 +327,7 @@ class HistoricalReplayStore:
     def import_native_weekly_manifest(
         self,
         manifest_path: Path,
-        loader: NativeWeeklyLoader | None = None,
+        loader: NativeWeeklySource | None = None,
     ) -> NativeWeeklyImportSummary:
         if not self.connection.execute("SELECT 1 FROM replay_metadata LIMIT 1").fetchone():
             raise DomainValidationError("One-minute replay history must be imported first")

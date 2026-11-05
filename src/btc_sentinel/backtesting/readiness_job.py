@@ -10,6 +10,7 @@ from contextlib import ExitStack
 from datetime import UTC, datetime
 from pathlib import Path
 
+from btc_sentinel.backtesting.development_rest_weekly import DevelopmentRestWeeklyLoader
 from btc_sentinel.backtesting.historical_runner import HistoricalReplayRunner
 from btc_sentinel.backtesting.replay import HistoricalReplayStore
 from btc_sentinel.backtesting.weekly_dataset import NativeWeeklyOverlapError
@@ -51,6 +52,10 @@ def _run(args: argparse.Namespace) -> dict[str, object]:
             if args.weekly_manifest is None
             else store.import_native_weekly_manifest(args.weekly_manifest)
         )
+        if args.weekly_rest_manifest is not None:
+            weekly = store.import_native_weekly_manifest(
+                args.weekly_rest_manifest, loader=DevelopmentRestWeeklyLoader()
+            )
         audit = HistoricalReplayRunner().audit_analysis_readiness(
             store,
             args.start,
@@ -66,6 +71,13 @@ def _run(args: argparse.Namespace) -> dict[str, object]:
                 None if monthly is None else monthly.manifest_sha256
             ),
             "native_weekly_dataset_id": None if weekly is None else weekly.dataset_id,
+            "native_weekly_source": (
+                None
+                if weekly is None
+                else "REST"
+                if args.weekly_rest_manifest is not None
+                else "ARCHIVE"
+            ),
             "native_weekly_manifest_sha256": None if weekly is None else weekly.manifest_sha256,
             "native_weekly_overlap_checked_count": (
                 None if weekly is None else weekly.overlap_checked_count
@@ -102,7 +114,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("start", type=_utc_argument)
     parser.add_argument("end", type=_utc_argument)
     parser.add_argument("--monthly-manifest", type=Path)
-    parser.add_argument("--weekly-manifest", type=Path)
+    weekly_group = parser.add_mutually_exclusive_group()
+    weekly_group.add_argument("--weekly-manifest", type=Path)
+    weekly_group.add_argument("--weekly-rest-manifest", type=Path)
     parser.add_argument("--work-directory", type=Path)
     args = parser.parse_args(argv)
     try:

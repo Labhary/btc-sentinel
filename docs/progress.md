@@ -26,14 +26,19 @@ performance validation. Phase 13 forward paper observation has not started.
    in volume/trade fields. The first disagreement was independently reproduced
    directly from 10,080 raw minute rows. See
    `rules-v0.7-weekly-warmup-result.md` and the exact evidence under `docs/evidence/`.
+5. Source triangulation: on 2021-01-11, all 1,440 daily-archive minute rows
+   agree with current minute REST records; 10 monthly-archive rows disagree.
+   Daily-minute sums also agree exactly with the current daily candle. This
+   identifies a concrete monthly-input discrepancy, not a resampling bug.
+   Method 2 was separately frozen in `rules-v0.7-daily-rest-method.md`.
 
 ## Current increment
 
-Strict weekly import and reproducible source diagnostics are implemented and
-tested. Source-integrity validation rejected this frozen method; this increment
-does not clear the readiness gate. Ordinary CI passes; the development evidence
-workflow is intentionally blocked by the observed source conflict, not accepted.
-No risk input, signal, trade or performance was evaluated in this increment.
+Acquire all 365 daily-minute archives for 2021 uniformly, retain and repeat-check
+the bounded official weekly REST response, then apply the same exact weekly
+overlap gate and full-year readiness audit. Preserve the rejected archive method
+as an expected-rejection regression, not an accepted method. No risk input,
+signal, trade or performance is evaluated by this increment.
 
 ## Remaining gates
 
